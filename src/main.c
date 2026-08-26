@@ -71,8 +71,12 @@
 
 // スロットル積算のパラメータ（INPUT_GENERIC時のみ有効）
 // フルデフレクションでスロットルが最小→最大まで動くのに要する時間。
-// 短いほど機敏だが荒くなる。
-#define THROTTLE_FULL_TRAVEL_MS  2000
+// 短いほど機敏だが荒くなる。実飛行(2026-08-27)で 2000ms は速すぎ、
+// ホバリング域(約15%幅)を0.3秒で通過してしまい操作不能だった。
+#define THROTTLE_FULL_TRAVEL_DEFAULT_MS  3500
+// 速度カーブのエクスポ量[%]。0=倒し量に線形、100=3乗。
+// 大きいほど中央付近が緩やかになり、ホバリング付近の微調整がしやすい。
+#define THROTTLE_EXPO_DEFAULT_PCT        75
 // 中央付近の不感帯（軸のフルスケール32767に対する値）。
 // スティックのジッタでスロットルが勝手に流れるのを防ぐ。
 #define THROTTLE_DEADZONE        3000
@@ -97,6 +101,12 @@ static uint32_t ibtn_last_change_ms = 0;
 // スロットル積算値（CRSF単位×1000のミリ単位で保持し、丸め誤差の蓄積を防ぐ）
 static int32_t  throttle_accum_milli = (int32_t)CRSF_CHANNEL_MIN * 1000;
 static uint32_t throttle_last_update_ms = 0;
+
+// スロットル特性は実飛行で詰めたいので、UARTコマンドで変更できる変数にしてある
+// （書込みにはゲームパッドを抜いてBOOTSELが必要で試行錯誤しづらいため）。
+// 電源を切ると既定値に戻る。詰まった値は上の DEFAULT に焼き直すこと。
+static uint32_t throttle_full_travel_ms = THROTTLE_FULL_TRAVEL_DEFAULT_MS;
+static uint32_t throttle_expo_pct       = THROTTLE_EXPO_DEFAULT_PCT;
 
 // 実体はLED制御と並べて後述。UARTコマンド 'i' からも呼ぶため先に宣言する。
 static void input_profile_toggle(void);
@@ -208,10 +218,20 @@ static uint16_t throttle_accumulate(int16_t stick_up, uint32_t now) {
     int32_t mag = stick_up < 0 ? -(int32_t)stick_up : (int32_t)stick_up;
     if (mag > THROTTLE_DEADZONE) {
         mag = (mag - THROTTLE_DEADZONE) * 32767 / (32767 - THROTTLE_DEADZONE);
+
+        // 速度カーブにエクスポを掛ける。線形だと中央付近でも速度が出てしまい、
+        // ホバリング付近の微調整ができない（実飛行で判明）。3乗を混ぜると
+        // 小さく倒したときだけ極端に緩やかになり、フル付近の速さは保てる。
+        if (throttle_expo_pct > 0) {
+            int64_t cube = (int64_t)mag * mag * mag / ((int64_t)32767 * 32767);
+            mag = (int32_t)(((int64_t)(100 - throttle_expo_pct) * mag
+                             + (int64_t)throttle_expo_pct * cube) / 100);
+        }
+
         int32_t range_milli = (int32_t)(CRSF_CHANNEL_MAX - CRSF_CHANNEL_MIN) * 1000;
-        // delta = 全可動域 × (倒し量/フルスケール) × (dt/フル移動時間)
+        // delta = 全可動域 × (カーブ後の倒し量/フルスケール) × (dt/フル移動時間)
         int32_t delta = (int32_t)((int64_t)range_milli * mag * dt
-                                  / ((int64_t)32767 * THROTTLE_FULL_TRAVEL_MS));
+                                  / ((int64_t)32767 * throttle_full_travel_ms));
         throttle_accum_milli += (stick_up < 0) ? -delta : delta;
 
         if (throttle_accum_milli < (int32_t)CRSF_CHANNEL_MIN * 1000) {
@@ -222,6 +242,24 @@ static uint16_t throttle_accumulate(int16_t stick_up, uint32_t now) {
     }
 
     return (uint16_t)(throttle_accum_milli / 1000);
+}
+
+// 現在のスロットル特性を、実際の増減速度[%/秒]に直して表示する。
+// 設定値そのものより「どれくらいの速さで動くか」の方が飛ばす側には分かりやすい。
+static void throttle_print_tuning(void) {
+    printf("# throttle: travel=%ums expo=%u%% -> rate",
+           (unsigned)throttle_full_travel_ms, (unsigned)throttle_expo_pct);
+    const int pcts[3] = { 25, 50, 100 };
+    for (int i = 0; i < 3; i++) {
+        int64_t x = pcts[i];
+        // カーブ後の割合 N/1e8 = ((100-expo)*x*1e4 + expo*x^3) / 1e8
+        int64_t n = (int64_t)(100 - throttle_expo_pct) * x * 10000
+                  + (int64_t)throttle_expo_pct * x * x * x;
+        // %/秒 = N / (1000 * travel_ms)。小数1桁まで出す。
+        int64_t tenths = n / (100 * (int64_t)throttle_full_travel_ms);
+        printf("  %d%%:%d.%d%%/s", (int)x, (int)(tenths / 10), (int)(tenths % 10));
+    }
+    printf("\n");
 }
 
 // ラジオ送信機（LiteRadio 3 等）用のマッピング。
@@ -474,6 +512,26 @@ static void dbg_poll_commands(void) {
             case 'i': case 'I':
                 input_profile_toggle();
                 break;
+            // --- 積算スロットルの実飛行チューニング ---
+            case '[':  // 遅く
+                if (throttle_full_travel_ms < 10000) throttle_full_travel_ms += 500;
+                throttle_print_tuning();
+                break;
+            case ']':  // 速く
+                if (throttle_full_travel_ms > 1000) throttle_full_travel_ms -= 500;
+                throttle_print_tuning();
+                break;
+            case ',':  // エクスポを弱く（線形寄り）
+                throttle_expo_pct = (throttle_expo_pct >= 25) ? throttle_expo_pct - 25 : 0;
+                throttle_print_tuning();
+                break;
+            case '.':  // エクスポを強く（3乗寄り）
+                throttle_expo_pct = (throttle_expo_pct <= 75) ? throttle_expo_pct + 25 : 100;
+                throttle_print_tuning();
+                break;
+            case 't': case 'T':
+                throttle_print_tuning();
+                break;
             case '?':
                 printf("# commands: d=snapshot  s=toggle stream  p=play/stop(PLAYBACK)"
                        "  i=input profile  ?=help\n");
@@ -481,6 +539,7 @@ static void dbg_poll_commands(void) {
                        MODE_BTN_PIN, MODE_BTN_LONG_MS / 1000.0);
                 printf("# input button(GP%d): switch GENERIC(accum) <-> LITERADIO(direct)"
                        " [now: %s]\n", INPUT_BTN_PIN, input_name(current_input));
+                printf("# throttle tuning: [=slower ]=faster ,=less-expo .=more-expo t=show\n");
                 break;
             default:
                 break;
