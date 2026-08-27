@@ -89,6 +89,14 @@
 // 位置カーブのエクスポ量[%]。0=線形、100=3乗。
 // 大きいほど中央付近が緩やかになり、ホバリング付近の微調整がしやすい。
 #define THROTTLE_EXPO_DEFAULT_PCT    75
+
+// ロール/ピッチ/ヨーのエクスポ量[%]（GENERIC時のみ）。
+// ゲームパッドのスティックは実機プロポのジンバルよりストロークが遥かに短く、
+// 同じ親指の動きでも操作量の割合が何倍にもなるため極端に敏感になる
+// （実飛行 2026-08-27: 少し倒すだけで機体が回ってしまった）。
+// これは入力デバイス固有の特性なので、Betaflightのrates（機体側で共通）ではなく
+// プロファイルごとに補正する。LiteRadioはジンバルが長いので適用しない。
+#define STICK_EXPO_DEFAULT_PCT       50
 // 中央付近の不感帯（軸のフルスケール32767に対する値）。
 // 手を離したとき確実にホバリング値へ戻るための平坦域。
 #define THROTTLE_DEADZONE            3000
@@ -112,6 +120,7 @@ static uint32_t ibtn_last_change_ms = 0;
 // 電源を切ると既定値に戻る。詰まった値は上の DEFAULT に焼き直すこと。
 static uint32_t throttle_hover_pct = THROTTLE_HOVER_DEFAULT_PCT;
 static uint32_t throttle_expo_pct  = THROTTLE_EXPO_DEFAULT_PCT;
+static uint32_t stick_expo_pct     = STICK_EXPO_DEFAULT_PCT;
 
 // 実体はLED制御と並べて後述。UARTコマンド 'i' からも呼ぶため先に宣言する。
 static void input_profile_toggle(void);
@@ -202,6 +211,23 @@ static inline int16_t axis_invert(int16_t v) {
 static bool arm_latched = false;
 static uint16_t prev_buttons = 0;
 
+// エクスポカーブ。mag(0〜32767) に対し、線形と3乗を expo_pct で混ぜる。
+// 中央付近だけを緩やかにし、フル付近の効きは保つ。
+static int32_t apply_expo(int32_t mag, uint32_t expo_pct) {
+    if (expo_pct == 0) return mag;
+    if (mag > 32767) mag = 32767;
+    int64_t cube = (int64_t)mag * mag * mag / ((int64_t)32767 * 32767);
+    return (int32_t)(((int64_t)(100 - expo_pct) * mag
+                      + (int64_t)expo_pct * cube) / 100);
+}
+
+// ロール/ピッチ/ヨー用。符号を保ったままエクスポを掛ける。
+static int16_t stick_expo(int16_t v) {
+    int32_t mag = (v < 0) ? -(int32_t)v : (int32_t)v;
+    mag = apply_expo(mag, stick_expo_pct);
+    return (int16_t)((v < 0) ? -mag : mag);
+}
+
 // ホバリング推力に対応するCRSF値
 static uint16_t throttle_hover_crsf(void) {
     return (uint16_t)(CRSF_CHANNEL_MIN
@@ -224,11 +250,7 @@ static uint16_t throttle_from_position(int16_t stick_up) {
     mag = (mag - THROTTLE_DEADZONE) * 32767 / (32767 - THROTTLE_DEADZONE);
 
     // エクスポ。中央付近を緩やかにしてホバリング付近の微調整をしやすくする。
-    if (throttle_expo_pct > 0) {
-        int64_t cube = (int64_t)mag * mag * mag / ((int64_t)32767 * 32767);
-        mag = (int32_t)(((int64_t)(100 - throttle_expo_pct) * mag
-                         + (int64_t)throttle_expo_pct * cube) / 100);
-    }
+    mag = apply_expo(mag, throttle_expo_pct);
 
     // 上下で可動幅が違う（ホバリングは中央より下にあるのが普通）ため、
     // それぞれの側の幅に対して比例させる。
@@ -258,12 +280,22 @@ static void throttle_print_tuning(void) {
            (unsigned)throttle_hover_pct, hover, crsf_to_us(hover),
            (unsigned)throttle_expo_pct);
     const int pcts[5] = { -100, -50, 0, 50, 100 };
-    printf("#   stick");
+    printf("#   thr stick");
     for (int i = 0; i < 5; i++) {
         int32_t stick = (int32_t)pcts[i] * 32767 / 100;
         if (stick < -32768) stick = -32768;
         uint16_t out = throttle_from_position((int16_t)stick);
         printf("  %+d%%:%uus", pcts[i], crsf_to_us(out));
+    }
+    printf("\n");
+
+    // ロール/ピッチ/ヨーは倒し量に対する出力の割合で見せる
+    printf("# stick expo=%u%% (roll/pitch/yaw) ->", (unsigned)stick_expo_pct);
+    const int spcts[4] = { 25, 50, 75, 100 };
+    for (int i = 0; i < 4; i++) {
+        int32_t in = (int32_t)spcts[i] * 32767 / 100;
+        int32_t out = apply_expo(in, stick_expo_pct);
+        printf("  %d%%:%d%%", spcts[i], (int)(out * 100 / 32767));
     }
     printf("\n");
 }
@@ -300,9 +332,20 @@ static void map_gamepad_to_channels(const gamepad_state_t *gamepad) {
     // CH3: Throttle (左スティック Y) ※反転
     // CH4: Yaw      (左スティック X)
 
-    crsf_channels[0] = crsf_normalize_channel(gamepad->axes[GAMEPAD_AXIS_RX]);  // Roll
-    crsf_channels[1] = crsf_normalize_channel(axis_invert(gamepad->axes[GAMEPAD_AXIS_RY])); // Pitch (反転)
-    crsf_channels[3] = crsf_normalize_channel(gamepad->axes[GAMEPAD_AXIS_LX]);  // Yaw
+    int16_t roll  = gamepad->axes[GAMEPAD_AXIS_RX];
+    int16_t pitch = axis_invert(gamepad->axes[GAMEPAD_AXIS_RY]);
+    int16_t yaw   = gamepad->axes[GAMEPAD_AXIS_LX];
+
+    // GENERIC時はスティックのストロークが短い分をエクスポで補正する
+    if (current_input == INPUT_GENERIC) {
+        roll  = stick_expo(roll);
+        pitch = stick_expo(pitch);
+        yaw   = stick_expo(yaw);
+    }
+
+    crsf_channels[0] = crsf_normalize_channel(roll);
+    crsf_channels[1] = crsf_normalize_channel(pitch);
+    crsf_channels[3] = crsf_normalize_channel(yaw);
 
     // CH3 Throttle: 入力プロファイルで解釈が変わる
     int16_t stick_up = axis_invert(gamepad->axes[GAMEPAD_AXIS_LY]);  // 上=正
@@ -530,6 +573,14 @@ static void dbg_poll_commands(void) {
                 throttle_expo_pct = (throttle_expo_pct <= 75) ? throttle_expo_pct + 25 : 100;
                 throttle_print_tuning();
                 break;
+            case '9':  // ロール/ピッチ/ヨーのエクスポを弱く
+                stick_expo_pct = (stick_expo_pct >= 10) ? stick_expo_pct - 10 : 0;
+                throttle_print_tuning();
+                break;
+            case '0':  // 同 強く（敏感すぎるときはこちら）
+                stick_expo_pct = (stick_expo_pct <= 90) ? stick_expo_pct + 10 : 100;
+                throttle_print_tuning();
+                break;
             case 't': case 'T':
                 throttle_print_tuning();
                 break;
@@ -540,7 +591,8 @@ static void dbg_poll_commands(void) {
                        MODE_BTN_PIN, MODE_BTN_LONG_MS / 1000.0);
                 printf("# input button(GP%d): switch GENERIC(accum) <-> LITERADIO(direct)"
                        " [now: %s]\n", INPUT_BTN_PIN, input_name(current_input));
-                printf("# throttle tuning: [=hover- ]=hover+ ,=less-expo .=more-expo t=show\n");
+                printf("# tuning: [=hover- ]=hover+ ,/.=throttle-expo"
+                       " 9/0=stick-expo t=show\n");
                 break;
             default:
                 break;
