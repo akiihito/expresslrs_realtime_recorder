@@ -608,8 +608,9 @@ static void dbg_poll_commands(void) {
                        "  i=input profile  ?=help\n");
                 printf("# mode button(GP%d): short=cycle mode  long(%.1fs)=play/stop in PLAYBACK\n",
                        MODE_BTN_PIN, MODE_BTN_LONG_MS / 1000.0);
-                printf("# input button(GP%d): switch GENERIC(accum) <-> LITERADIO(direct)"
-                       " [now: %s]\n", INPUT_BTN_PIN, input_name(current_input));
+                printf("# input button(GP%d): switch GENERIC(hover-center) <->"
+                       " LITERADIO(direct) [now: %s]\n",
+                       INPUT_BTN_PIN, input_name(current_input));
                 printf("# tuning: [=hover- ]=hover+ ,/.=throttle-expo"
                        " 7/8=stick-scale 9/0=stick-expo t=show\n");
                 printf("#   softer: . (throttle) / 7 (less travel) / 0 (more expo)\n");
@@ -675,7 +676,7 @@ static void update_mode_leds(void) {
 
 static const char* input_name(input_profile_t p) {
     switch (p) {
-        case INPUT_GENERIC:   return "GENERIC(accum)";
+        case INPUT_GENERIC:   return "GENERIC(hover-center)";
         case INPUT_LITERADIO: return "LITERADIO(direct)";
         default:              return "?";
     }
