@@ -1,0 +1,68 @@
+# 回路図（KiCad 9）
+
+`recorder.kicad_pro` を KiCad で開く。`recorder.pdf` は KiCad なしで見る／印刷する用。
+
+**PCBのアートワークは未着手**。この回路図から `ツール → 基板をスキーマから更新` で
+Pcbnew に渡して配置・配線する。**フットプリントは未割り当て**なので、その際に
+シンボルごとに指定すること（Pico は `RPi_Pico` ライブラリの導入が必要）。
+
+## 検証状況
+
+- **ERC: エラー0 / 警告0**（`kicad-cli sch erc`）
+- ネットリストを書き出して全ネットの結線を確認済み（下表）
+- ⚠️ ただし**実基板での通電確認はしていない**。ブレッドボードで動作確認済みの
+  配線を回路図に起こしたもの。差分は下記「ブレッドボードとの違い」を参照。
+
+## ネット一覧（`kicad-cli sch export netlist` の結果）
+
+| ネット | 接続先 |
+|---|---|
+| `+5V` | J2.3 (Buck OUT+) — U1.40 (VBUS) |
+| `VBAT_7_13V` | J3.1 (LiPo+) — J2.1 (Buck IN+) — J1.3 (Nano TX VBAT) |
+| `GND` | 全GND（Pico 8本, J1〜J4, SW1〜3, D1〜D5） |
+| `CRSF_TX` | U1.1 (GP0) — R6.1 (680Ω) |
+| `CRSF_BUS` | R6.2 — J1.1 (Nano TX CRSF) — U1.2 (GP1) |
+| `DBG_TX` / `DBG_RX` | U1.6 (GP4) / U1.7 (GP5) — J4.1 / J4.2 |
+| `BTN_MODE` | U1.4 (GP2) — SW1 |
+| `BTN_INPUT` | U1.9 (GP6) — SW2 |
+| `SW_ARM` | U1.5 (GP3) — SW3 |
+| `LED_REC` / `LED_PLAY` / `LED_SIMPLE` | U1.14/15/16 (GP10-12) — R1/R2/R3 |
+| `LED_GENERIC` / `LED_LITERADIO` | U1.17 (GP13) / U1.19 (GP14) — R4 / R5 |
+
+## ブレッドボードとの違い（要判断）
+
+- **GP1 を CRSF バスに接続している。** ブレッドボードでは GP0 のみ配線して
+  Stage D に合格したが、ファームの `crsf_drain_telemetry()` は「半二重で自分の
+  送信エコーがRXに入る」前提で書かれており、参照図（63bit氏 R63b）も TXD/RXD を
+  1本に結線している。基板ではその形に合わせた。**不要なら J1.1 と GP1 の間を
+  切れるようにしておくと安全。**
+- **SW3（GP3 の Arm トグルスイッチ）を載せている。** ファーム側の実装は
+  commit `1534582` にあるがスイッチ未購入のため revert 中（`eb4c241`）。
+  基板には場所を用意しておく方が後で楽なので含めた。
+
+## 部品
+
+| 参照 | 部品 | 備考 |
+|---|---|---|
+| U1 | Raspberry Pi Pico | USBポートはゲームパッド専有 |
+| R1–R5 | 100Ω | LED直列。緑/青はVf≈3Vで330Ωでは暗い |
+| R6 | 680Ω | CRSF半二重バスの保護（衝突時の電流制限） |
+| D1–D5 | LED 赤/緑/青/×2 | モード表示・入力プロファイル表示 |
+| SW1, SW2 | タクトSW | モード切替 / 入力切替。内部プルアップ使用 |
+| SW3 | トグルSW | Arm。内部プルアップ使用 |
+| J1 | 3ピン | Nano TX V2（背面視 左から CRSF/GND/7-13V） |
+| J2 | 4ピン | 降圧モジュール MP1584E（IN+/IN−/OUT+/OUT−） |
+| J3 | 2ピン | LiPo 3S または PSU |
+| J4 | 3ピン | USB-シリアル変換（TXD/RXD/GND） |
+
+## 再生成について
+
+`tools/gen_sch.py` が KiCad 標準ライブラリからシンボルを取り出して
+`recorder.kicad_sch` を生成する（配線はネットラベル方式）。
+
+```bash
+cd hardware/tools && python3 gen_sch.py ../recorder.kicad_sch
+```
+
+⚠️ **再生成すると KiCad の GUI で加えた編集は失われる。** 一度 KiCad で
+編集を始めたら、このスクリプトは「どう作ったかの記録」として扱うこと。

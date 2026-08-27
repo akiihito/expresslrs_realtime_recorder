@@ -231,6 +231,12 @@ LiteRadioはジンバルが長いので適用しない。
 ### 保留中の代替アーキテクチャ（二Pico構成）
 制御Pico（USBホスト＋CRSF）と記録Pico（フラッシュ保存）を分離する案を検討済み。USB HIDは1ホスト専有のためY分岐不可で、「制御Pico→UART横流し→記録Pico」の形。制御のタイミング完全絶縁・墜落耐性が利点。現状は単一Picoで進行、UART出力を中立に保ち後から発展可能にする方針。
 
+## 回路図 / 基板
+- **回路図**: `hardware/recorder.kicad_pro`（KiCad 9）。KiCad無しで見る用に `hardware/recorder.pdf`。
+  ERCエラー0・警告0、ネットリストで全結線を確認済み。詳細と部品表は `hardware/README.md`。
+- **PCBアートワークは未着手**（自分でやる方針）。フットプリントも未割り当て。
+- ユニバーサル基板の配置は `docs/perfboard-layout.html`（GP3/GP6/GP13/GP14 が未反映なので要更新）。
+
 ## Skills
 - `/build` - ファームウェアをビルド
 - `/test` - ユニットテストを実行
