@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ExpressLRS Realtime Recorder — 操作一覧</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", system-ui, sans-serif;
+    font-size: 9.5pt; line-height: 1.45; color: #111; background: #fff;
+    margin: 0 auto; max-width: 190mm; padding: 8mm;
+  }
+  h1 { font-size: 15pt; margin: 0 0 2mm; border-bottom: 2px solid #111; padding-bottom: 2mm; }
+  h1 .sub { font-size: 9pt; font-weight: normal; color: #555; margin-left: 3mm; }
+  h2 {
+    font-size: 11pt; margin: 5mm 0 1.5mm; padding: 1mm 2mm;
+    background: #111; color: #fff;
+  }
+  h3 { font-size: 9.5pt; margin: 3mm 0 1mm; color: #333; }
+  section { break-inside: avoid; page-break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 2mm; }
+  th, td { border: 0.5pt solid #999; padding: 1.1mm 1.8mm; text-align: left; vertical-align: top; }
+  th { background: #eee; font-weight: 600; white-space: nowrap; }
+  td.k { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700;
+         white-space: nowrap; width: 22mm; background: #f7f7f7; }
+  td.ch { white-space: nowrap; width: 26mm; font-variant-numeric: tabular-nums; }
+  .cols { display: flex; gap: 5mm; }
+  .cols > * { flex: 1; min-width: 0; }
+  .warn { border: 1pt solid #111; padding: 2mm 3mm; margin: 2mm 0; background: #f4f4f4; }
+  .warn strong { display: block; margin-bottom: 0.8mm; }
+  ol, ul { margin: 1mm 0 2mm; padding-left: 5mm; }
+  li { margin-bottom: 0.6mm; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+         background: #f0f0f0; padding: 0 0.8mm; border-radius: 1px; }
+  .soft { color: #555; font-size: 8.5pt; }
+  footer { margin-top: 5mm; padding-top: 2mm; border-top: 0.5pt solid #999;
+           font-size: 8pt; color: #555; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+
+<h1>ExpressLRS Realtime Recorder — 操作一覧<span class="sub">Pico + F310 / LiteRadio 3 → Nano TX V2 → Pavo Pico II</span></h1>
+
+<section>
+<h2>本体のボタンとLED</h2>
+<div class="cols">
+<table>
+  <tr><th>操作</th><th>動作</th></tr>
+  <tr><td class="k">GP2 短押し</td><td>モード循環 SIMPLE→RECORD→PLAYBACK</td></tr>
+  <tr><td class="k">GP2 長押し<br><span class="soft">0.6秒</span></td><td>PLAYBACK中に再生 start / stop</td></tr>
+  <tr><td class="k">GP6 短押し</td><td>入力プロファイル切替<br>GENERIC ⇔ LITERADIO</td></tr>
+</table>
+<table>
+  <tr><th>LED</th><th>意味</th></tr>
+  <tr><td class="k">GP10 赤</td><td>RECORD（記録中）</td></tr>
+  <tr><td class="k">GP11 緑</td><td>PLAYBACK（再生モード）</td></tr>
+  <tr><td class="k">GP12 青</td><td>SIMPLE（パススルー）</td></tr>
+  <tr><td class="k">GP13</td><td>GENERIC（ゲームパッド）</td></tr>
+  <tr><td class="k">GP14</td><td>LITERADIO（送信機）</td></tr>
+  <tr><td class="k">内蔵LED</td><td>点灯=接続 / 点滅=未接続 / 速点滅=再生</td></tr>
+</table>
+</div>
+</section>
+
+<section>
+<h2>ゲームパッド F310 — GENERIC プロファイル</h2>
+<table>
+  <tr><th>操作</th><th class="ch">チャンネル</th><th>動作</th></tr>
+  <tr><td class="k">右スティック ←→</td><td class="ch">CH1 Roll</td><td>ロール</td></tr>
+  <tr><td class="k">右スティック ↑↓</td><td class="ch">CH2 Pitch</td><td>ピッチ</td></tr>
+  <tr><td class="k">左スティック ↑↓</td><td class="ch">CH3 Throttle</td><td><strong>中央 = ホバリング推力</strong>。下端=最小 / 上端=最大。手を離すとホバリング値に戻る</td></tr>
+  <tr><td class="k">左スティック ←→</td><td class="ch">CH4 Yaw</td><td>ヨー</td></tr>
+  <tr><td class="k">D-pad ↑ / ↓</td><td class="ch">—</td><td><strong>ホバリング推力トリム ±1%</strong>（飛行中の電圧降下を補正）</td></tr>
+  <tr><td class="k">A</td><td class="ch">CH7 / AUX3</td><td><strong>Arm トグル</strong>（1回=Arm、もう1回=Disarm）</td></tr>
+  <tr><td class="k">B</td><td class="ch">CH8 / AUX4</td><td>未割当</td></tr>
+  <tr><td class="k">X</td><td class="ch">CH9 / AUX5</td><td>未割当</td></tr>
+  <tr><td class="k">Y</td><td class="ch">CH10 / AUX6</td><td>未割当</td></tr>
+  <tr><td class="k">LB / RB</td><td class="ch">CH11,12 / AUX7,8</td><td>未割当</td></tr>
+</table>
+<p class="soft">CH5/CH6（AUX1/AUX2）はトリガー用だが F310 の L2/R2 はデジタルのため常に中央値。CH13〜16 は未使用（中央値）。</p>
+
+<div class="warn">
+  <strong>⚠️ Arm はスロットルスティックを下に押さえたまま行う</strong>
+  中央がホバリング推力（約1200us）なので、中央のままだと Betaflight がスロットル高として Arm を拒否する（ビープで通知）。<br>
+  <strong>手順:</strong> ①スロットルを下に押さえる → ②A を押して Arm → ③ゆっくり離すとホバリングまで上がって離陸
+</div>
+</section>
+
+<section>
+<h2>LiteRadio 3 — LITERADIO プロファイル</h2>
+<table>
+  <tr><th>操作</th><th class="ch">チャンネル</th><th>実測値（左右端）</th></tr>
+  <tr><td class="k">右スティック ←→</td><td class="ch">CH1 Roll</td><td>172 / 1811</td></tr>
+  <tr><td class="k">右スティック ↑↓</td><td class="ch">CH2 Pitch</td><td>182 / 1803</td></tr>
+  <tr><td class="k">左スティック ↑↓</td><td class="ch">CH3 Throttle</td><td>172 / 1811（絶対値・位置保持）</td></tr>
+  <tr><td class="k">左スティック ←→</td><td class="ch">CH4 Yaw</td><td>172 / 1811</td></tr>
+  <tr><td class="k">送信機スイッチ</td><td class="ch">CH7〜CH12</td><td>ボタンとして届く</td></tr>
+</table>
+<div class="warn">
+  <strong>⚠️ LiteRadio 3 使用時は必ず GP6 で LITERADIO に切り替える</strong>
+  GENERIC のままだとゲームパッド解釈になり軸がバラバラになる。<br>
+  <strong>⚠️ スロットルのジンバルは位置を保持する</strong>（自動で下がらない）。Arm 前に必ず一番下にあることを目視確認する。
+</div>
+</section>
+
+<section>
+<h2>シリアルコンソール（UART GP4/GP5）</h2>
+<h3>確認・表示</h3>
+<table>
+  <tr><td class="k">?</td><td>ヘルプ（コマンド一覧・現在のプロファイル）</td></tr>
+  <tr><td class="k">t</td><td>スロットル／舵の現在設定と、各スティック位置での出力を表示</td></tr>
+  <tr><td class="k">d</td><td>スナップショット（生HID → state → CRSF → フレーム → CRC を全段ダンプ）</td></tr>
+  <tr><td class="k">s</td><td>連続ストリーム ON/OFF（25Hz CSV、<code>live_view.py</code> 用）<span class="soft">※トグル</span></td></tr>
+</table>
+
+<h3>モード・プロファイル</h3>
+<table>
+  <tr><td class="k">i</td><td>入力プロファイル切替（GP6ボタンと同じ）</td></tr>
+  <tr><td class="k">p</td><td>再生 start / stop（PLAYBACK モード時のみ）</td></tr>
+</table>
+
+<h3>スロットル調整 <span class="soft">（GENERIC時のみ有効）</span></h3>
+<table>
+  <tr><td class="k">[</td><td>ホバリング推力を<strong>下げる</strong>（1%）— 中央に戻る前に浮くとき</td></tr>
+  <tr><td class="k">]</td><td>ホバリング推力を<strong>上げる</strong>（1%）— 手を離すと沈むとき</td></tr>
+  <tr><td class="k">.</td><td>スロットルのエクスポを<strong>強く</strong>（中央付近が緩やかに）</td></tr>
+  <tr><td class="k">,</td><td>同 <strong>弱く</strong>（線形寄り＝鋭くなる）</td></tr>
+</table>
+
+<h3>舵（ロール／ピッチ／ヨー）調整 <span class="soft">（GENERIC時のみ有効）</span></h3>
+<table>
+  <tr><td class="k">7</td><td>舵角スケールを<strong>下げる</strong>（5%刻み、20%まで）— <strong>全体的に効きすぎるときはこれ</strong></td></tr>
+  <tr><td class="k">8</td><td>舵角スケールを<strong>上げる</strong>（100%まで）</td></tr>
+  <tr><td class="k">0</td><td>エクスポを<strong>強く</strong>（5%刻み）— 中央付近だけ緩やかに。<span class="soft">フル舵角は変わらない</span></td></tr>
+  <tr><td class="k">9</td><td>同 <strong>弱く</strong>（＝鋭くなる）</td></tr>
+</table>
+
+<div class="warn">
+  <strong>柔らかくする方向 → <code>[</code> <code>.</code> <code>7</code> <code>0</code></strong>
+  鋭くする方向 → <code>,</code> <code>8</code> <code>9</code>（<code>]</code> はホバリング推力を上げる＝浮く方向で意味が異なる）<br>
+  <span class="soft">調整値は電源を切ると既定値に戻る。良い値が出たらソースの <code>*_DEFAULT_PCT</code> に焼き直すこと。</span>
+</div>
+</section>
+
+<section>
+<h2>PC からの操作手順</h2>
+<h3>ファームウェア書き込み</h3>
+<ol>
+  <li>ゲームパッド（または LiteRadio）と外部5V を外す</li>
+  <li>BOOTSEL を押しながら Pico を PC へ micro-USB 接続 →「RPI-RP2」がマウント</li>
+  <li><code>./scripts/flash.sh</code></li>
+  <li>配線を元に戻す</li>
+</ol>
+
+<h3>シリアルモニター</h3>
+<ul>
+  <li><code>./scripts/monitor.sh 115200</code>
+    <span class="soft">※手持ちのFTDI変換器は分周器バグでボーレートが8倍ずれる。実際の線上は921600bps</span></li>
+  <li>終了: <code>Ctrl+A</code> → <code>K</code> → <code>y</code>
+    <span class="soft">（<code>Ctrl+A</code>→<code>D</code> はデタッチでポートを掴んだままになるので注意）</span></li>
+  <li>リアルタイム表示: <code>python3 scripts/live_view.py</code></li>
+</ul>
+
+<div class="warn">
+  <strong>⚠️ Betaflight Configurator 接続中は Arm できない</strong>
+  <code>MSP</code> / <code>CLI</code> フラグによる安全機構でビープ拒否される。Arm の確認は USB を抜いてから行う。
+</div>
+</section>
+
+<footer>
+ExpressLRS Realtime Recorder — 詳細は <code>CLAUDE.md</code> / <code>docs/breadboard-bringup.md</code> 参照
+</footer>
+
+</body>
+</html>
