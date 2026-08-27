@@ -382,6 +382,26 @@ static void map_gamepad_to_channels(const gamepad_state_t *gamepad) {
         arm_latched = !arm_latched;
         printf("# %s\n", arm_latched ? "ARM" : "DISARM");
     }
+
+    // D-pad上下 = ホバリング推力のトリム（実機プロポのスロットルトリム相当）。
+    // バッテリーが減ると同じスロットル%での推力が落ちる（推力∝電圧²）ため、
+    // 飛行中にホバリング点が上がっていく。UARTを見ずに親指で補正できるようにする。
+    // 押下エッジのみ（押しっぱなしで走らないように）。
+    if (current_input == INPUT_GENERIC) {
+        if ((gamepad->buttons & GAMEPAD_BTN_DPAD_U) &&
+            !(prev_buttons & GAMEPAD_BTN_DPAD_U) && throttle_hover_pct < 100) {
+            throttle_hover_pct++;
+            printf("# hover trim -> %u%% (~%uus)\n",
+                   (unsigned)throttle_hover_pct, crsf_to_us(throttle_hover_crsf()));
+        }
+        if ((gamepad->buttons & GAMEPAD_BTN_DPAD_D) &&
+            !(prev_buttons & GAMEPAD_BTN_DPAD_D) && throttle_hover_pct > 0) {
+            throttle_hover_pct--;
+            printf("# hover trim -> %u%% (~%uus)\n",
+                   (unsigned)throttle_hover_pct, crsf_to_us(throttle_hover_crsf()));
+        }
+    }
+
     prev_buttons = gamepad->buttons;
     crsf_channels[6] = arm_latched ? CRSF_CHANNEL_MAX : CRSF_CHANNEL_MIN;
     // B/Circleボタン → CH8
