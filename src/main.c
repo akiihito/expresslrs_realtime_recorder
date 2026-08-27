@@ -98,6 +98,13 @@
 // これは入力デバイス固有の特性なので、Betaflightのrates（機体側で共通）ではなく
 // プロファイルごとに補正する。LiteRadioはジンバルが長いので適用しない。
 #define STICK_EXPO_DEFAULT_PCT       50
+
+// ロール/ピッチ/ヨーの舵角スケール[%]（GENERIC時のみ）。
+// エクスポはカーブの形を変えるだけで**フル時の舵角は変えられない**ため、
+// 「全体的に効きすぎる」場合はこちらで出力そのものを絞る。
+// 100=フル舵角、60=フルに倒しても6割の舵角。Betaflightのratesを下げるのと
+// 同等だが、入力デバイスごとに設定できる点と、飛行中にUARTで詰められる点が違う。
+#define STICK_SCALE_DEFAULT_PCT      60
 // 中央付近の不感帯（軸のフルスケール32767に対する値）。
 // 手を離したとき確実にホバリング値へ戻るための平坦域。
 #define THROTTLE_DEADZONE            3000
@@ -122,6 +129,7 @@ static uint32_t ibtn_last_change_ms = 0;
 static uint32_t throttle_hover_pct = THROTTLE_HOVER_DEFAULT_PCT;
 static uint32_t throttle_expo_pct  = THROTTLE_EXPO_DEFAULT_PCT;
 static uint32_t stick_expo_pct     = STICK_EXPO_DEFAULT_PCT;
+static uint32_t stick_scale_pct    = STICK_SCALE_DEFAULT_PCT;
 
 // 実体はLED制御と並べて後述。UARTコマンド 'i' からも呼ぶため先に宣言する。
 static void input_profile_toggle(void);
@@ -222,10 +230,11 @@ static int32_t apply_expo(int32_t mag, uint32_t expo_pct) {
                       + (int64_t)expo_pct * cube) / 100);
 }
 
-// ロール/ピッチ/ヨー用。符号を保ったままエクスポを掛ける。
-static int16_t stick_expo(int16_t v) {
+// ロール/ピッチ/ヨー用。符号を保ったままエクスポを掛け、舵角を絞る。
+static int16_t stick_shape(int16_t v) {
     int32_t mag = (v < 0) ? -(int32_t)v : (int32_t)v;
     mag = apply_expo(mag, stick_expo_pct);
+    mag = mag * (int32_t)stick_scale_pct / 100;
     return (int16_t)((v < 0) ? -mag : mag);
 }
 
@@ -290,12 +299,13 @@ static void throttle_print_tuning(void) {
     }
     printf("\n");
 
-    // ロール/ピッチ/ヨーは倒し量に対する出力の割合で見せる
-    printf("# stick expo=%u%% (roll/pitch/yaw) ->", (unsigned)stick_expo_pct);
+    // ロール/ピッチ/ヨーは倒し量に対する舵角の割合で見せる
+    printf("# stick expo=%u%% scale=%u%% (roll/pitch/yaw) ->",
+           (unsigned)stick_expo_pct, (unsigned)stick_scale_pct);
     const int spcts[4] = { 25, 50, 75, 100 };
     for (int i = 0; i < 4; i++) {
         int32_t in = (int32_t)spcts[i] * 32767 / 100;
-        int32_t out = apply_expo(in, stick_expo_pct);
+        int32_t out = stick_shape((int16_t)in);
         printf("  %d%%:%d%%", spcts[i], (int)(out * 100 / 32767));
     }
     printf("\n");
@@ -337,11 +347,11 @@ static void map_gamepad_to_channels(const gamepad_state_t *gamepad) {
     int16_t pitch = axis_invert(gamepad->axes[GAMEPAD_AXIS_RY]);
     int16_t yaw   = gamepad->axes[GAMEPAD_AXIS_LX];
 
-    // GENERIC時はスティックのストロークが短い分をエクスポで補正する
+    // GENERIC時はスティックのストロークが短い分をエクスポ＋舵角スケールで補正する
     if (current_input == INPUT_GENERIC) {
-        roll  = stick_expo(roll);
-        pitch = stick_expo(pitch);
-        yaw   = stick_expo(yaw);
+        roll  = stick_shape(roll);
+        pitch = stick_shape(pitch);
+        yaw   = stick_shape(yaw);
     }
 
     crsf_channels[0] = crsf_normalize_channel(roll);
@@ -574,6 +584,14 @@ static void dbg_poll_commands(void) {
                 throttle_expo_pct = (throttle_expo_pct <= 75) ? throttle_expo_pct + 25 : 100;
                 throttle_print_tuning();
                 break;
+            case '7':  // 舵角を絞る（全体的に効きすぎるときはこちら）
+                stick_scale_pct = (stick_scale_pct >= 25) ? stick_scale_pct - 5 : 20;
+                throttle_print_tuning();
+                break;
+            case '8':  // 舵角を戻す
+                stick_scale_pct = (stick_scale_pct <= 95) ? stick_scale_pct + 5 : 100;
+                throttle_print_tuning();
+                break;
             case '9':  // ロール/ピッチ/ヨーのエクスポを弱く
                 stick_expo_pct = (stick_expo_pct >= 5) ? stick_expo_pct - 5 : 0;
                 throttle_print_tuning();
@@ -593,7 +611,8 @@ static void dbg_poll_commands(void) {
                 printf("# input button(GP%d): switch GENERIC(accum) <-> LITERADIO(direct)"
                        " [now: %s]\n", INPUT_BTN_PIN, input_name(current_input));
                 printf("# tuning: [=hover- ]=hover+ ,/.=throttle-expo"
-                       " 9/0=stick-expo t=show\n");
+                       " 7/8=stick-scale 9/0=stick-expo t=show\n");
+                printf("#   softer: . (throttle) / 7 (less travel) / 0 (more expo)\n");
                 break;
             default:
                 break;
