@@ -167,7 +167,16 @@ place(PICO, 'U1', 'Raspberry Pi Pico', (PX, PY, 0))
 
 # --- Pico 左側: 信号 ---
 stub_label(PICO, (PX, PY, 0), '1',  'CRSF_TX')     # GP0
-stub_label(PICO, (PX, PY, 0), '2',  'CRSF_BUS')    # GP1 (半二重: バス側に接続)
+# GP1は保護抵抗を挟んでバスへ。GP0側の680Ωと違い直結だと、J1を逆挿しした際に
+# VBAT(最大13V)が素通しでGPIOへ入る。1kΩなら故障電流を十数mAに抑えられる。
+# 921600bpsに対し 1k×入力容量数pF = 数ns なので波形への影響は無視できる。
+gp1 = pin_xy(PICO, (PX, PY, 0), '2')
+place('Device:R', 'R7', '1k', (gp1[0] - 12.7, gp1[1], 90))
+r7r = pin_xy('Device:R', (gp1[0] - 12.7, gp1[1], 90), '2')
+r7l = pin_xy('Device:R', (gp1[0] - 12.7, gp1[1], 90), '1')
+wire((gp1[0], gp1[1]), (r7r[0], r7r[1]))
+wire((r7l[0], r7l[1]), (r7l[0] - 5.08, r7l[1]))
+label('CRSF_BUS', (r7l[0] - 5.08, r7l[1]), 0, 'right')
 stub_label(PICO, (PX, PY, 0), '4',  'BTN_MODE')    # GP2
 stub_label(PICO, (PX, PY, 0), '5',  'SW_ARM')      # GP3
 stub_label(PICO, (PX, PY, 0), '6',  'DBG_TX')      # GP4
@@ -322,13 +331,30 @@ for i, (ref, lib, val, net) in enumerate(CAPS):
     wire((bot[0], bot[1]), (bot[0], bot[1] + 5.08))
     power('power:GND', (bot[0], bot[1] + 5.08, 0))
 
+# 降圧モジュールが短絡故障すると入力の12Vが5Vレールに出る。このとき電流は
+# 正常範囲なのでヒューズは飛ばない。TVSが導通して電流を引きヒューズを飛ばす。
+# ⚠️ クランプ電圧はPicoの絶対最大(5.5V)より高いので、Picoの延命は保証できない。
+# 主目的は「そのまま12Vが載り続ける状態」を断つことと、活線挿抜サージの吸収。
+TVX, TVY = 213.36, 187.96
+# KiCadのD_TVSは双方向シンボル。双方向品(SMAJ5.0CA)を指定して図と部品を一致させる。
+# 双方向は実装時に極性を間違えようがないという利点もある。
+place('Device:D_TVS', 'D6', 'SMAJ5.0CA', (TVX, TVY, 90))
+tv1 = pin_xy('Device:D_TVS', (TVX, TVY, 90), '1')
+tv2 = pin_xy('Device:D_TVS', (TVX, TVY, 90), '2')
+top_pin, bot_pin = (tv1, tv2) if tv1[1] < tv2[1] else (tv2, tv1)
+wire((top_pin[0], top_pin[1]), (top_pin[0], top_pin[1] - 5.08))
+power('power:+5V', (top_pin[0], top_pin[1] - 5.08, 0))
+wire((bot_pin[0], bot_pin[1]), (bot_pin[0], bot_pin[1] + 5.08))
+power('power:GND', (bot_pin[0], bot_pin[1] + 5.08, 0))
+
 text_note('C1/C2: Nano TX VBAT直近に置く（送信バーストの電圧ドロップ対策）\n'
           'C3/C4: Pico VBUS直近に置く（ゲームパッド接続時の突入電流対策）\n'
-          '⚠️ 電解コンの耐圧は3S満充電12.6Vを超えること。極性に注意',
-          (CX - 12, CY - 22), 1.27)
+          '⚠️ 電解コンの耐圧は3S満充電12.6Vを超えること。極性に注意\n'
+          'D6: Buck短絡故障時に12Vが5Vへ出るのを断つ（ヒューズを飛ばす）',
+          (CX - 12, CY - 24), 1.27)
 
 # ================================================================= デバッグUART
-UX, UY = 243.84, 205.74
+UX, UY = 243.84, 215.90
 place('Connector_Generic:Conn_01x03', 'J4', 'USB-Serial', (UX, UY, 0))
 u1 = pin_xy('Connector_Generic:Conn_01x03', (UX, UY, 0), '1')
 u2 = pin_xy('Connector_Generic:Conn_01x03', (UX, UY, 0), '2')
