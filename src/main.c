@@ -84,8 +84,9 @@
 // ⚠️ この方式では「手を離す＝この推力が出る」ため、実際のホバリング値より
 // 高いと手を離した瞬間に上昇する（とっさに手を離す動作が安全側に働かない）。
 // 低い分は「浮かない・ゆっくり降りる」だけなので、**必ず低めから始めて上げる**。
-// 既定30%は安全側の初期値。実機で釣り合う値を見つけたらここに焼き直すこと。
-#define THROTTLE_HOVER_DEFAULT_PCT   30
+// 既定20%は安全側の初期値（実飛行 2026-08-27 で30%はまだ高く、中央に戻る前に
+// 浮き始めた）。実機で釣り合う値を見つけたらここに焼き直すこと。
+#define THROTTLE_HOVER_DEFAULT_PCT   20
 // 位置カーブのエクスポ量[%]。0=線形、100=3乗。
 // 大きいほど中央付近が緩やかになり、ホバリング付近の微調整がしやすい。
 #define THROTTLE_EXPO_DEFAULT_PCT    75
@@ -574,11 +575,11 @@ static void dbg_poll_commands(void) {
                 throttle_print_tuning();
                 break;
             case '9':  // ロール/ピッチ/ヨーのエクスポを弱く
-                stick_expo_pct = (stick_expo_pct >= 10) ? stick_expo_pct - 10 : 0;
+                stick_expo_pct = (stick_expo_pct >= 5) ? stick_expo_pct - 5 : 0;
                 throttle_print_tuning();
                 break;
             case '0':  // 同 強く（敏感すぎるときはこちら）
-                stick_expo_pct = (stick_expo_pct <= 90) ? stick_expo_pct + 10 : 100;
+                stick_expo_pct = (stick_expo_pct <= 95) ? stick_expo_pct + 5 : 100;
                 throttle_print_tuning();
                 break;
             case 't': case 'T':
