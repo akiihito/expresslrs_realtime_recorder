@@ -69,20 +69,25 @@
 #define LED_INPUT_LITERADIO_PIN  14  // LiteRadio3（スロットル絶対値）
 #define INPUT_BTN_DEBOUNCE_MS    30
 
-// スロットル積算のパラメータ（INPUT_GENERIC時のみ有効）
-// フルデフレクションでスロットルが最小→最大まで動くのに要する時間。
-// 短いほど機敏だが荒くなる。実飛行(2026-08-27)で 2000ms は速すぎ、
-// ホバリング域(約15%幅)を0.3秒で通過してしまい操作不能だった。
-#define THROTTLE_FULL_TRAVEL_DEFAULT_MS  3500
-// 速度カーブのエクスポ量[%]。0=倒し量に線形、100=3乗。
+// スロットルのパラメータ（INPUT_GENERIC時のみ有効）
+//
+// 自動中央復帰スティックでも、**中央をホバリング推力に割り当てる**ことで
+// プロポと同じ「位置＝推力」にできる。
+//   下端=最小 / 中央=ホバリング / 上端=最大
+//
+// ⚠️ 初版は積算方式（倒し量=増減の速さ）だったが、実飛行(2026-08-27)で
+// 操作不能だった。スロットル→高さは元々2重積分（推力→速度→高さ）であり、
+// 積算を挟むと**3重積分**になる。人間が閉ループで3重積分を制御するのは
+// ほぼ不可能で、カーブを緩めても構造は変わらないため方式ごと差し替えた。
+//
+// ホバリング推力[%]。機体重量やバッテリー電圧で変わるためUARTで調整可能。
+#define THROTTLE_HOVER_DEFAULT_PCT   45
+// 位置カーブのエクスポ量[%]。0=線形、100=3乗。
 // 大きいほど中央付近が緩やかになり、ホバリング付近の微調整がしやすい。
-#define THROTTLE_EXPO_DEFAULT_PCT        75
+#define THROTTLE_EXPO_DEFAULT_PCT    75
 // 中央付近の不感帯（軸のフルスケール32767に対する値）。
-// スティックのジッタでスロットルが勝手に流れるのを防ぐ。
-#define THROTTLE_DEADZONE        3000
-// 1フレームで進める最大時間。フラッシュ書込み等でループが止まった直後に
-// スロットルが一気に飛ぶのを防ぐ。
-#define THROTTLE_MAX_DT_MS       20
+// 手を離したとき確実にホバリング値へ戻るための平坦域。
+#define THROTTLE_DEADZONE            3000
 
 // 入力プロファイル（ボタン押下で GENERIC ⇔ LITERADIO をトグル）
 typedef enum {
@@ -98,15 +103,11 @@ static input_profile_t current_input = INPUT_GENERIC;
 static bool     ibtn_pressed_state = false;
 static uint32_t ibtn_last_change_ms = 0;
 
-// スロットル積算値（CRSF単位×1000のミリ単位で保持し、丸め誤差の蓄積を防ぐ）
-static int32_t  throttle_accum_milli = (int32_t)CRSF_CHANNEL_MIN * 1000;
-static uint32_t throttle_last_update_ms = 0;
-
 // スロットル特性は実飛行で詰めたいので、UARTコマンドで変更できる変数にしてある
 // （書込みにはゲームパッドを抜いてBOOTSELが必要で試行錯誤しづらいため）。
 // 電源を切ると既定値に戻る。詰まった値は上の DEFAULT に焼き直すこと。
-static uint32_t throttle_full_travel_ms = THROTTLE_FULL_TRAVEL_DEFAULT_MS;
-static uint32_t throttle_expo_pct       = THROTTLE_EXPO_DEFAULT_PCT;
+static uint32_t throttle_hover_pct = THROTTLE_HOVER_DEFAULT_PCT;
+static uint32_t throttle_expo_pct  = THROTTLE_EXPO_DEFAULT_PCT;
 
 // 実体はLED制御と並べて後述。UARTコマンド 'i' からも呼ぶため先に宣言する。
 static void input_profile_toggle(void);
@@ -197,67 +198,68 @@ static inline int16_t axis_invert(int16_t v) {
 static bool arm_latched = false;
 static uint16_t prev_buttons = 0;
 
-// スロットル積算値を最小にリセットする。
-// Disarm時・切断時・プロファイル切替時に呼び、直前のスロットルが
-// 意図せず引き継がれないようにする。
-static void throttle_reset(void) {
-    throttle_accum_milli = (int32_t)CRSF_CHANNEL_MIN * 1000;
+// ホバリング推力に対応するCRSF値
+static uint16_t throttle_hover_crsf(void) {
+    return (uint16_t)(CRSF_CHANNEL_MIN
+                    + (int32_t)(CRSF_CHANNEL_MAX - CRSF_CHANNEL_MIN)
+                      * (int32_t)throttle_hover_pct / 100);
 }
 
-// 汎用ゲームパッド用のスロットル積算。
-// 自動中央復帰するスティックでは位置をそのままスロットルにできないため、
-// スティックの倒し量を「増減の速さ」として積分する（中央=現在値を保持）。
-// 戻り値: CRSF単位のスロットル値。
-static uint16_t throttle_accumulate(int16_t stick_up, uint32_t now) {
-    // 経過時間。初回およびループ停止直後は上限で頭打ちにする。
-    uint32_t dt = now - throttle_last_update_ms;
-    throttle_last_update_ms = now;
-    if (dt > THROTTLE_MAX_DT_MS) dt = THROTTLE_MAX_DT_MS;
+// 汎用ゲームパッド用のスロットル。中央をホバリング推力に割り当てた位置型。
+//   下端 → CRSF最小 / 中央 → ホバリング / 上端 → CRSF最大
+// 倒し量が「上昇・下降の速さ」になり、手を離せばホバリング推力に戻る。
+// 積分器を挟まないので、プロポと同じ操作感になる。
+static uint16_t throttle_from_position(int16_t stick_up) {
+    uint16_t hover = throttle_hover_crsf();
 
-    // 不感帯を差し引き、残りを 0〜32767 に引き伸ばす
+    // 不感帯を差し引き、残りを 0〜32767 に引き伸ばす（符号は後で戻す）
     int32_t mag = stick_up < 0 ? -(int32_t)stick_up : (int32_t)stick_up;
-    if (mag > THROTTLE_DEADZONE) {
-        mag = (mag - THROTTLE_DEADZONE) * 32767 / (32767 - THROTTLE_DEADZONE);
+    if (mag <= THROTTLE_DEADZONE) {
+        return hover;  // 中央付近は確実にホバリング値
+    }
+    mag = (mag - THROTTLE_DEADZONE) * 32767 / (32767 - THROTTLE_DEADZONE);
 
-        // 速度カーブにエクスポを掛ける。線形だと中央付近でも速度が出てしまい、
-        // ホバリング付近の微調整ができない（実飛行で判明）。3乗を混ぜると
-        // 小さく倒したときだけ極端に緩やかになり、フル付近の速さは保てる。
-        if (throttle_expo_pct > 0) {
-            int64_t cube = (int64_t)mag * mag * mag / ((int64_t)32767 * 32767);
-            mag = (int32_t)(((int64_t)(100 - throttle_expo_pct) * mag
-                             + (int64_t)throttle_expo_pct * cube) / 100);
-        }
-
-        int32_t range_milli = (int32_t)(CRSF_CHANNEL_MAX - CRSF_CHANNEL_MIN) * 1000;
-        // delta = 全可動域 × (カーブ後の倒し量/フルスケール) × (dt/フル移動時間)
-        int32_t delta = (int32_t)((int64_t)range_milli * mag * dt
-                                  / ((int64_t)32767 * throttle_full_travel_ms));
-        throttle_accum_milli += (stick_up < 0) ? -delta : delta;
-
-        if (throttle_accum_milli < (int32_t)CRSF_CHANNEL_MIN * 1000) {
-            throttle_accum_milli = (int32_t)CRSF_CHANNEL_MIN * 1000;
-        } else if (throttle_accum_milli > (int32_t)CRSF_CHANNEL_MAX * 1000) {
-            throttle_accum_milli = (int32_t)CRSF_CHANNEL_MAX * 1000;
-        }
+    // エクスポ。中央付近を緩やかにしてホバリング付近の微調整をしやすくする。
+    if (throttle_expo_pct > 0) {
+        int64_t cube = (int64_t)mag * mag * mag / ((int64_t)32767 * 32767);
+        mag = (int32_t)(((int64_t)(100 - throttle_expo_pct) * mag
+                         + (int64_t)throttle_expo_pct * cube) / 100);
     }
 
-    return (uint16_t)(throttle_accum_milli / 1000);
+    // 上下で可動幅が違う（ホバリングは中央より下にあるのが普通）ため、
+    // それぞれの側の幅に対して比例させる。
+    int32_t out;
+    if (stick_up >= 0) {
+        out = hover + (int32_t)(CRSF_CHANNEL_MAX - hover) * mag / 32767;
+    } else {
+        out = hover - (int32_t)(hover - CRSF_CHANNEL_MIN) * mag / 32767;
+    }
+
+    if (out < CRSF_CHANNEL_MIN) out = CRSF_CHANNEL_MIN;
+    if (out > CRSF_CHANNEL_MAX) out = CRSF_CHANNEL_MAX;
+    return (uint16_t)out;
 }
 
-// 現在のスロットル特性を、実際の増減速度[%/秒]に直して表示する。
-// 設定値そのものより「どれくらいの速さで動くか」の方が飛ばす側には分かりやすい。
+// CRSF値をBetaflight側の目安[us]に直す（172→1000us, 1811→2000us）
+static unsigned crsf_to_us(uint16_t v) {
+    return 1000u + (unsigned)(((int32_t)v - CRSF_CHANNEL_MIN) * 1000
+                              / (CRSF_CHANNEL_MAX - CRSF_CHANNEL_MIN));
+}
+
+// 現在のスロットル特性を表示する。設定値だけでなく、実際にスティックを
+// 倒したときの出力も併記して、飛ばす前に想像がつくようにする。
 static void throttle_print_tuning(void) {
-    printf("# throttle: travel=%ums expo=%u%% -> rate",
-           (unsigned)throttle_full_travel_ms, (unsigned)throttle_expo_pct);
-    const int pcts[3] = { 25, 50, 100 };
-    for (int i = 0; i < 3; i++) {
-        int64_t x = pcts[i];
-        // カーブ後の割合 N/1e8 = ((100-expo)*x*1e4 + expo*x^3) / 1e8
-        int64_t n = (int64_t)(100 - throttle_expo_pct) * x * 10000
-                  + (int64_t)throttle_expo_pct * x * x * x;
-        // %/秒 = N / (1000 * travel_ms)。小数1桁まで出す。
-        int64_t tenths = n / (100 * (int64_t)throttle_full_travel_ms);
-        printf("  %d%%:%d.%d%%/s", (int)x, (int)(tenths / 10), (int)(tenths % 10));
+    uint16_t hover = throttle_hover_crsf();
+    printf("# throttle: hover=%u%% (CRSF %u, ~%uus) expo=%u%%\n",
+           (unsigned)throttle_hover_pct, hover, crsf_to_us(hover),
+           (unsigned)throttle_expo_pct);
+    const int pcts[5] = { -100, -50, 0, 50, 100 };
+    printf("#   stick");
+    for (int i = 0; i < 5; i++) {
+        int32_t stick = (int32_t)pcts[i] * 32767 / 100;
+        if (stick < -32768) stick = -32768;
+        uint16_t out = throttle_from_position((int16_t)stick);
+        printf("  %+d%%:%uus", pcts[i], crsf_to_us(out));
     }
     printf("\n");
 }
@@ -287,7 +289,7 @@ static void map_radio_to_channels(const gamepad_state_t *gamepad) {
 }
 
 // ゲームパッド入力をCRSFチャンネルにマッピング
-static void map_gamepad_to_channels(const gamepad_state_t *gamepad, uint32_t now) {
+static void map_gamepad_to_channels(const gamepad_state_t *gamepad) {
     // 標準的なドローン操縦マッピング (Mode 2)
     // CH1: Roll     (右スティック X)
     // CH2: Pitch    (右スティック Y) ※反転
@@ -301,8 +303,8 @@ static void map_gamepad_to_channels(const gamepad_state_t *gamepad, uint32_t now
     // CH3 Throttle: 入力プロファイルで解釈が変わる
     int16_t stick_up = axis_invert(gamepad->axes[GAMEPAD_AXIS_LY]);  // 上=正
     if (current_input == INPUT_GENERIC) {
-        // 自動中央復帰スティック: 倒し量を増減率として積算（中央=保持）
-        crsf_channels[2] = throttle_accumulate(stick_up, now);
+        // 自動中央復帰スティック: 中央=ホバリング推力の位置型
+        crsf_channels[2] = throttle_from_position(stick_up);
     } else {
         // LiteRadio3: ジンバル位置がそのままスロットル
         crsf_channels[2] = crsf_normalize_channel(stick_up);
@@ -318,9 +320,6 @@ static void map_gamepad_to_channels(const gamepad_state_t *gamepad, uint32_t now
     // A/Crossボタン → CH7 (Arm): 押下エッジでトグル
     if ((gamepad->buttons & GAMEPAD_BTN_A) && !(prev_buttons & GAMEPAD_BTN_A)) {
         arm_latched = !arm_latched;
-        // Disarmしたら積算スロットルも最小に戻す。次のArmで前回の
-        // スロットルのまま回り出すのを防ぐ。
-        if (!arm_latched) throttle_reset();
         printf("# %s\n", arm_latched ? "ARM" : "DISARM");
     }
     prev_buttons = gamepad->buttons;
@@ -353,8 +352,6 @@ static void set_failsafe_channels(void) {
     // Armトグルもリセット（再接続した瞬間に勝手にArmが復活しないように）
     arm_latched = false;
     prev_buttons = 0;
-    // 積算スロットルもリセット（再接続で前回のスロットルが復活しないように）
-    throttle_reset();
 }
 
 // ========================================
@@ -512,13 +509,13 @@ static void dbg_poll_commands(void) {
             case 'i': case 'I':
                 input_profile_toggle();
                 break;
-            // --- 積算スロットルの実飛行チューニング ---
-            case '[':  // 遅く
-                if (throttle_full_travel_ms < 10000) throttle_full_travel_ms += 500;
+            // --- スロットルの実飛行チューニング ---
+            case '[':  // ホバリング推力を下げる（機体が浮きすぎるとき）
+                if (throttle_hover_pct > 0) throttle_hover_pct -= 1;
                 throttle_print_tuning();
                 break;
-            case ']':  // 速く
-                if (throttle_full_travel_ms > 1000) throttle_full_travel_ms -= 500;
+            case ']':  // ホバリング推力を上げる（機体が沈むとき）
+                if (throttle_hover_pct < 100) throttle_hover_pct += 1;
                 throttle_print_tuning();
                 break;
             case ',':  // エクスポを弱く（線形寄り）
@@ -539,7 +536,7 @@ static void dbg_poll_commands(void) {
                        MODE_BTN_PIN, MODE_BTN_LONG_MS / 1000.0);
                 printf("# input button(GP%d): switch GENERIC(accum) <-> LITERADIO(direct)"
                        " [now: %s]\n", INPUT_BTN_PIN, input_name(current_input));
-                printf("# throttle tuning: [=slower ]=faster ,=less-expo .=more-expo t=show\n");
+                printf("# throttle tuning: [=hover- ]=hover+ ,=less-expo .=more-expo t=show\n");
                 break;
             default:
                 break;
@@ -641,10 +638,8 @@ static void init_mode_io(void) {
 }
 
 // 入力プロファイルを切り替える。スロットルの解釈が変わるため、
-// 積算値は必ず最小へリセットしてから切り替える。
 static void input_profile_toggle(void) {
     current_input = (input_profile_t)((current_input + 1) % INPUT_PROFILE_COUNT);
-    throttle_reset();
     update_input_leds();
     printf("# input -> %s\n", input_name(current_input));
 }
@@ -800,7 +795,7 @@ int main() {
                             gamepad->channel_count >= 4) {
                             map_radio_to_channels(gamepad);
                         } else {
-                            map_gamepad_to_channels(gamepad, now);
+                            map_gamepad_to_channels(gamepad);
                         }
                         gpio_put(LED_PIN, 1);  // 接続中: 内蔵LED点灯
                     } else {
