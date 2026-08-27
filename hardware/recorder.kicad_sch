@@ -2403,6 +2403,447 @@
       )
       (embedded_fonts no)
     )
+    (symbol "Device:Fuse"
+      (pin_numbers
+        (hide yes)
+      )
+      (pin_names
+        (offset 0)
+      )
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "F"
+        (at 2.032 0 90)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+        )
+      )
+      (property "Value" "Fuse"
+        (at -1.905 0 90)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+        )
+      )
+      (property "Footprint" ""
+        (at -1.778 0 90)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "Datasheet" "~"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "Description" "Fuse"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "ki_keywords" "fuse"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "ki_fp_filters" "*Fuse*"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (symbol "Fuse_0_1"
+        (rectangle
+          (start -0.762 -2.54)
+          (end 0.762 2.54)
+          (stroke
+            (width 0.254)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+        (polyline
+          (pts
+            (xy 0 2.54)
+            (xy 0 -2.54)
+          )
+          (stroke
+            (width 0)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+      )
+      (symbol "Fuse_1_1"
+        (pin passive line
+          (at 0 3.81 270)
+          (length 1.27)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+          (number "1"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+        )
+        (pin passive line
+          (at 0 -3.81 90)
+          (length 1.27)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+          (number "2"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+        )
+      )
+      (embedded_fonts no)
+    )
+    (symbol "Device:C_Polarized"
+      (pin_numbers
+        (hide yes)
+      )
+      (pin_names
+        (offset 0.254)
+      )
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "C"
+        (at 0.635 2.54 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (justify left)
+        )
+      )
+      (property "Value" "C_Polarized"
+        (at 0.635 -2.54 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (justify left)
+        )
+      )
+      (property "Footprint" ""
+        (at 0.9652 -3.81 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "Datasheet" "~"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "Description" "Polarized capacitor"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "ki_keywords" "cap capacitor"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "ki_fp_filters" "CP_*"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (symbol "C_Polarized_0_1"
+        (rectangle
+          (start -2.286 0.508)
+          (end 2.286 1.016)
+          (stroke
+            (width 0)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+        (polyline
+          (pts
+            (xy -1.778 2.286)
+            (xy -0.762 2.286)
+          )
+          (stroke
+            (width 0)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+        (polyline
+          (pts
+            (xy -1.27 2.794)
+            (xy -1.27 1.778)
+          )
+          (stroke
+            (width 0)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+        (rectangle
+          (start 2.286 -0.508)
+          (end -2.286 -1.016)
+          (stroke
+            (width 0)
+            (type default)
+          )
+          (fill
+            (type outline)
+          )
+        )
+      )
+      (symbol "C_Polarized_1_1"
+        (pin passive line
+          (at 0 3.81 270)
+          (length 2.794)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+          (number "1"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+        )
+        (pin passive line
+          (at 0 -3.81 90)
+          (length 2.794)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+          (number "2"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+        )
+      )
+      (embedded_fonts no)
+    )
+    (symbol "Device:C"
+      (pin_numbers
+        (hide yes)
+      )
+      (pin_names
+        (offset 0.254)
+      )
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "C"
+        (at 0.635 2.54 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (justify left)
+        )
+      )
+      (property "Value" "C"
+        (at 0.635 -2.54 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (justify left)
+        )
+      )
+      (property "Footprint" ""
+        (at 0.9652 -3.81 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "Datasheet" "~"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "Description" "Unpolarized capacitor"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "ki_keywords" "cap capacitor"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (property "ki_fp_filters" "C_*"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+          (hide yes)
+        )
+      )
+      (symbol "C_0_1"
+        (polyline
+          (pts
+            (xy -2.032 0.762)
+            (xy 2.032 0.762)
+          )
+          (stroke
+            (width 0.508)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+        (polyline
+          (pts
+            (xy -2.032 -0.762)
+            (xy 2.032 -0.762)
+          )
+          (stroke
+            (width 0.508)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+      )
+      (symbol "C_1_1"
+        (pin passive line
+          (at 0 3.81 270)
+          (length 2.794)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+          (number "1"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+        )
+        (pin passive line
+          (at 0 -3.81 90)
+          (length 2.794)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+          (number "2"
+            (effects
+              (font
+                (size 1.27 1.27)
+              )
+            )
+          )
+        )
+      )
+      (embedded_fonts no)
+    )
   )
   (symbol
     (lib_id "MCU_Module:RaspberryPi_Pico")
@@ -2725,6 +3166,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "+5V"
@@ -2779,6 +3221,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -3051,6 +3494,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -3223,6 +3667,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -3395,6 +3840,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -3567,6 +4013,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -3739,6 +4186,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -3867,6 +4315,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -3995,6 +4444,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -4123,6 +4573,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -4353,6 +4804,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -4533,6 +4985,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -4587,6 +5040,7 @@
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -4678,26 +5132,80 @@
       )
     )
   )
+  (symbol
+    (lib_id "Device:Fuse")
+    (at 40.64 205.74 90)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "4f433e6a-e4a0-63a8-437b-121c8de758f2")
+    (property "Reference" "F1"
+      (at 40.64 200.66 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "2A"
+      (at 40.64 210.82 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 40.64 205.74 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "F1")
+          (unit 1)
+        )
+      )
+    )
+  )
   (wire
     (pts
+      (xy 44.45 205.74)
       (xy 55.88 205.74)
-      (xy 48.260000000000005 205.74)
     )
     (stroke
       (width 0)
       (type default)
     )
-    (uuid "4f433e6a-e4a0-63a8-437b-121c8de758f2")
+    (uuid "84deab98-9298-3ba9-244e-2b211fe82f59")
+  )
+  (wire
+    (pts
+      (xy 36.83 205.74)
+      (xy 31.75 205.74)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "11547f76-8b24-5dc4-33ad-b6cb7fc7ff31")
   )
   (label "VBAT_7_13V"
-    (at 48.260000000000005 205.74 0)
+    (at 31.75 205.74 0)
     (effects
       (font
         (size 1.27 1.27)
       )
       (justify right)
     )
-    (uuid "84deab98-9298-3ba9-244e-2b211fe82f59")
+    (uuid "1946ecfe-c436-90f0-28a0-74a59dc41b32")
   )
   (wire
     (pts
@@ -4708,7 +5216,7 @@
       (width 0)
       (type default)
     )
-    (uuid "11547f76-8b24-5dc4-33ad-b6cb7fc7ff31")
+    (uuid "7ad230d6-8855-2f1e-d07e-cc7074eeed4d")
   )
   (symbol
     (lib_id "power:GND")
@@ -4718,13 +5226,14 @@
     (in_bom yes)
     (on_board yes)
     (dnp no)
-    (uuid "1946ecfe-c436-90f0-28a0-74a59dc41b32")
+    (uuid "5701f890-3c4a-c573-d889-a588c195b411")
     (property "Reference" "#PWR"
       (at 48.260000000000005 203.2 0)
       (effects
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -4761,7 +5270,7 @@
       )
       (justify left)
     )
-    (uuid "7ad230d6-8855-2f1e-d07e-cc7074eeed4d")
+    (uuid "718b62e3-ceb6-67a8-f2aa-698ae90ff188")
   )
   (text "GNDはLiPo−起点のスター結線"
     (at 30.96 199.77 0)
@@ -4771,7 +5280,581 @@
       )
       (justify left)
     )
-    (uuid "5701f890-3c4a-c573-d889-a588c195b411")
+    (uuid "32fddbae-7511-0244-72f3-bd05a7307e2a")
+  )
+  (symbol
+    (lib_id "Device:C_Polarized")
+    (at 132.08 187.96 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "52f49d1a-b6c2-65c6-516b-5a190844433f")
+    (property "Reference" "C1"
+      (at 132.08 184.15 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "470uF/25V"
+      (at 132.08 191.77 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 132.08 187.96 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "C1")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (wire
+    (pts
+      (xy 132.08 184.15)
+      (xy 132.08 179.07)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "02a6f681-59a2-a1de-8747-2cee62974394")
+  )
+  (label "VBAT_7_13V"
+    (at 132.08 179.07 90)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+      (justify left)
+    )
+    (uuid "fbd15a4d-f463-e168-897d-0fe3fc181244")
+  )
+  (wire
+    (pts
+      (xy 132.08 191.77)
+      (xy 132.08 196.85000000000002)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "ac6d6780-f733-4c2b-1e98-6c029501fa33")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 132.08 196.85000000000002 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "a92b2297-5f4b-e464-c700-63169cb16db5")
+    (property "Reference" "#PWR"
+      (at 132.08 193.04 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (property "Value" "GND"
+      (at 132.08 200.66 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 132.08 196.85000000000002 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "#PWR")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (symbol
+    (lib_id "Device:C")
+    (at 152.4 187.96 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "e5b35932-e58d-ba49-756b-08dd4b14c6f8")
+    (property "Reference" "C2"
+      (at 152.4 184.15 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "100nF"
+      (at 152.4 191.77 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 152.4 187.96 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "C2")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (wire
+    (pts
+      (xy 152.4 184.15)
+      (xy 152.4 179.07)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "ed6e1a1a-709a-337d-6ebf-983c6e249073")
+  )
+  (label "VBAT_7_13V"
+    (at 152.4 179.07 90)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+      (justify left)
+    )
+    (uuid "a05d77bf-f1aa-1573-9d94-ce6ba24f0d1f")
+  )
+  (wire
+    (pts
+      (xy 152.4 191.77)
+      (xy 152.4 196.85000000000002)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "da8c0e7d-24c4-5d6c-c0e9-1f02f8c2ff78")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 152.4 196.85000000000002 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "5c39aa11-624f-e1a2-ab7e-6cf5dd8a95a8")
+    (property "Reference" "#PWR"
+      (at 152.4 193.04 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (property "Value" "GND"
+      (at 152.4 200.66 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 152.4 196.85000000000002 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "#PWR")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (symbol
+    (lib_id "Device:C_Polarized")
+    (at 172.72000000000003 187.96 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "22bc1dba-c30f-39ba-c9a6-f9c2c510f4c1")
+    (property "Reference" "C3"
+      (at 172.72000000000003 184.15 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "100uF/16V"
+      (at 172.72000000000003 191.77 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 172.72000000000003 187.96 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "C3")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (wire
+    (pts
+      (xy 172.72 184.15)
+      (xy 172.72 179.07)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "73823a25-5890-0234-8fb9-86782b78c5f1")
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 172.72 179.07 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "faaca659-7b23-7665-f9bc-832686fd6a3b")
+    (property "Reference" "#PWR"
+      (at 172.72 175.26 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (property "Value" "+5V"
+      (at 172.72 182.88 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 172.72 179.07 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "#PWR")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (wire
+    (pts
+      (xy 172.72 191.77)
+      (xy 172.72 196.85000000000002)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "cd61781a-8689-d7d4-026d-442ab08e2058")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 172.72 196.85000000000002 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "da531cf0-fa3e-03b5-b343-0f643d33e28d")
+    (property "Reference" "#PWR"
+      (at 172.72 193.04 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (property "Value" "GND"
+      (at 172.72 200.66 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 172.72 196.85000000000002 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "#PWR")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (symbol
+    (lib_id "Device:C")
+    (at 193.04000000000002 187.96 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "7f795372-a3cc-3f80-49b4-159a6bec348e")
+    (property "Reference" "C4"
+      (at 193.04000000000002 184.15 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Value" "100nF"
+      (at 193.04000000000002 191.77 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 193.04000000000002 187.96 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "C4")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (wire
+    (pts
+      (xy 193.04 184.15)
+      (xy 193.04 179.07)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "b60be125-021f-1a9e-e9b4-8c71814f47e3")
+  )
+  (symbol
+    (lib_id "power:+5V")
+    (at 193.04 179.07 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "8f3fbc65-29fa-fa7a-2444-78ec96f91332")
+    (property "Reference" "#PWR"
+      (at 193.04 175.26 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (property "Value" "+5V"
+      (at 193.04 182.88 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 193.04 179.07 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "#PWR")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (wire
+    (pts
+      (xy 193.04 191.77)
+      (xy 193.04 196.85000000000002)
+    )
+    (stroke
+      (width 0)
+      (type default)
+    )
+    (uuid "8e228080-f1c0-8b56-324e-4361805da92a")
+  )
+  (symbol
+    (lib_id "power:GND")
+    (at 193.04 196.85000000000002 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "fb659b9b-10d4-0db1-1322-0640441680f0")
+    (property "Reference" "#PWR"
+      (at 193.04 193.04 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (property "Value" "GND"
+      (at 193.04 200.66 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+      )
+    )
+    (property "Footprint" ""
+      (at 193.04 196.85000000000002 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
+    (instances
+      (project "recorder"
+        (path "/29abc61b-1706-ab98-b806-6ff5b7baa0f5"
+          (reference "#PWR")
+          (unit 1)
+        )
+      )
+    )
+  )
+  (text "C1/C2: Nano TX VBAT直近に置く（送信バーストの電圧ドロップ対策）"
+    (at 120.08 165.96 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+      (justify left)
+    )
+    (uuid "fc1bfc5f-d19b-1194-be33-75fcb24b8302")
+  )
+  (text "C3/C4: Pico VBUS直近に置く（ゲームパッド接続時の突入電流対策）"
+    (at 120.08 167.99 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+      (justify left)
+    )
+    (uuid "7440a804-2bc9-a547-0eac-fa034692aed5")
+  )
+  (text "⚠️ 電解コンの耐圧は3S満充電12.6Vを超えること。極性に注意"
+    (at 120.08 170.02 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+      (justify left)
+    )
+    (uuid "c1d1b302-b47f-7ee6-0150-36ff112ab7f2")
   )
   (symbol
     (lib_id "Connector_Generic:Conn_01x03")
@@ -4781,7 +5864,7 @@
     (in_bom yes)
     (on_board yes)
     (dnp no)
-    (uuid "718b62e3-ceb6-67a8-f2aa-698ae90ff188")
+    (uuid "f0f21c27-ae04-c452-fc42-44a4c16c4290")
     (property "Reference" "J4"
       (at 243.84 201.93 0)
       (effects
@@ -4825,7 +5908,7 @@
       (width 0)
       (type default)
     )
-    (uuid "32fddbae-7511-0244-72f3-bd05a7307e2a")
+    (uuid "38a9cca8-2802-8c04-6eef-430cab60f095")
   )
   (label "DBG_TX"
     (at 231.14 203.2 0)
@@ -4835,7 +5918,7 @@
       )
       (justify right)
     )
-    (uuid "52f49d1a-b6c2-65c6-516b-5a190844433f")
+    (uuid "428b0548-5b44-9b57-e2fb-4ecb88e7107a")
   )
   (wire
     (pts
@@ -4846,7 +5929,7 @@
       (width 0)
       (type default)
     )
-    (uuid "02a6f681-59a2-a1de-8747-2cee62974394")
+    (uuid "64efae47-b538-7b81-c483-848f88128fb7")
   )
   (label "DBG_RX"
     (at 231.14 205.74 0)
@@ -4856,7 +5939,7 @@
       )
       (justify right)
     )
-    (uuid "fbd15a4d-f463-e168-897d-0fe3fc181244")
+    (uuid "377c1c7e-ff7d-cd9a-257a-b6d7d0db3d40")
   )
   (wire
     (pts
@@ -4867,7 +5950,7 @@
       (width 0)
       (type default)
     )
-    (uuid "ac6d6780-f733-4c2b-1e98-6c029501fa33")
+    (uuid "0fe4542a-002f-8a8a-92a7-d2c03ca36ac5")
   )
   (symbol
     (lib_id "power:GND")
@@ -4877,13 +5960,14 @@
     (in_bom yes)
     (on_board yes)
     (dnp no)
-    (uuid "a92b2297-5f4b-e464-c700-63169cb16db5")
+    (uuid "1a2102a6-74f8-8688-f270-8234672009dd")
     (property "Reference" "#PWR"
       (at 231.14 203.2 0)
       (effects
         (font
           (size 1.27 1.27)
         )
+        (hide yes)
       )
     )
     (property "Value" "GND"
@@ -4920,7 +6004,7 @@
       )
       (justify left)
     )
-    (uuid "e5b35932-e58d-ba49-756b-08dd4b14c6f8")
+    (uuid "f59db02e-ed2b-ff56-0831-891960c7fdf6")
   )
   (text "921600bps（手持ちFTDIは115200指定で読める）"
     (at 211.84 197.77 0)
@@ -4930,7 +6014,7 @@
       )
       (justify left)
     )
-    (uuid "ed6e1a1a-709a-337d-6ebf-983c6e249073")
+    (uuid "985021fb-e2d5-3249-6249-fcc608b068c3")
   )
   (sheet_instances
     (path "/"

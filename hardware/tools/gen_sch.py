@@ -69,7 +69,7 @@ def pin_xy(lib_id, at, num, mirror_y=False):
         rot = (180 - rot) % 360
     return (round(px + sx, 2), round(py - sy, 2), rot)
 
-def place(lib_id, ref, value, at, mirror_y=False, fields_hidden=True,
+def place(lib_id, ref, value, at, mirror_y=False, hide_ref=False,
           footprint=''):
     node, _ = get_symbol(lib_id)
     used_libs[lib_id] = node
@@ -85,9 +85,12 @@ def place(lib_id, ref, value, at, mirror_y=False, fields_hidden=True,
     # Reference / Value は本体の少し外へ
     # 回転部品でも本体に重ならないよう、上下に離して中央揃えで置く
     off = 5.08 if at[2] in (90, 270) else 3.81
+    ref_fx = ['effects', ['font', ['size', '1.27', '1.27']]]
+    if hide_ref:                      # 電源シンボルの #PWR は慣例どおり隠す
+        ref_fx.append(['hide', 'yes'])
     sym.append(['property', ('str', 'Reference'), ('str', ref),
                 ['at', str(at[0]), str(round(at[1] - off, 2)), '0'],
-                ['effects', ['font', ['size', '1.27', '1.27']]]])
+                ref_fx])
     sym.append(['property', ('str', 'Value'), ('str', value),
                 ['at', str(at[0]), str(round(at[1] + off, 2)), '0'],
                 ['effects', ['font', ['size', '1.27', '1.27']]]])
@@ -151,7 +154,7 @@ def power(lib_id, at, mirror=False):
     node, _ = get_symbol(lib_id)
     used_libs[lib_id] = node
     name = lib_id.split(':')[1]
-    place(lib_id, '#PWR', name, at, mirror_y=mirror)
+    place(lib_id, '#PWR', name, at, mirror_y=mirror, hide_ref=True)
     return pin_xy(lib_id, at, '1', mirror)
 
 ROOT_UUID = uuid()
@@ -287,12 +290,42 @@ PWX, PWY = 60.96, 205.74
 place('Connector_Generic:Conn_01x02', 'J3', 'LiPo 3S / PSU', (PWX, PWY, 0))
 p1 = pin_xy('Connector_Generic:Conn_01x02', (PWX, PWY, 0), '1')
 p2 = pin_xy('Connector_Generic:Conn_01x02', (PWX, PWY, 0), '2')
-wire((p1[0], p1[1]), (p1[0] - 7.62, p1[1]))
-label('VBAT_7_13V', (p1[0] - 7.62, p1[1]), 0, 'right')
+# LiPo+ の主線にヒューズ。定格は実測して決めること（初期値2A）
+place('Device:Fuse', 'F1', '2A', (p1[0] - 15.24, p1[1], 90))
+f1a = pin_xy('Device:Fuse', (p1[0] - 15.24, p1[1], 90), '1')
+f1b = pin_xy('Device:Fuse', (p1[0] - 15.24, p1[1], 90), '2')
+wire((f1b[0], f1b[1]), (p1[0], p1[1]))
+wire((f1a[0], f1a[1]), (f1a[0] - 5.08, f1a[1]))
+label('VBAT_7_13V', (f1a[0] - 5.08, f1a[1]), 0, 'right')
 wire((p2[0], p2[1]), (p2[0] - 7.62, p2[1]))
 power('power:GND', (p2[0] - 7.62, p2[1], 270))
 text_note('⚠️ Buck出力5VとLiPo+は絶対に接続しない\nGNDはLiPo−起点のスター結線',
           (PWX - 30, PWY - 8), 1.27)
+
+# ================================================================= コンデンサ
+# ラベル方式なので、各コンデンサは「電源ラベル → コンデンサ → GND」で置くだけでよい。
+CAPS = [('C1', 'Device:C_Polarized', '470uF/25V', 'VBAT_7_13V'),
+        ('C2', 'Device:C',           '100nF',     'VBAT_7_13V'),
+        ('C3', 'Device:C_Polarized', '100uF/16V', '+5V'),
+        ('C4', 'Device:C',           '100nF',     '+5V')]
+CX, CY, CDX = 132.08, 187.96, 20.32
+for i, (ref, lib, val, net) in enumerate(CAPS):
+    x = CX + i * CDX
+    place(lib, ref, val, (x, CY, 0))
+    top = pin_xy(lib, (x, CY, 0), '1')
+    bot = pin_xy(lib, (x, CY, 0), '2')
+    wire((top[0], top[1]), (top[0], top[1] - 5.08))
+    if net == '+5V':
+        power('power:+5V', (top[0], top[1] - 5.08, 0))
+    else:
+        label(net, (top[0], top[1] - 5.08), 90, 'left')
+    wire((bot[0], bot[1]), (bot[0], bot[1] + 5.08))
+    power('power:GND', (bot[0], bot[1] + 5.08, 0))
+
+text_note('C1/C2: Nano TX VBAT直近に置く（送信バーストの電圧ドロップ対策）\n'
+          'C3/C4: Pico VBUS直近に置く（ゲームパッド接続時の突入電流対策）\n'
+          '⚠️ 電解コンの耐圧は3S満充電12.6Vを超えること。極性に注意',
+          (CX - 12, CY - 22), 1.27)
 
 # ================================================================= デバッグUART
 UX, UY = 243.84, 205.74
