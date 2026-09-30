@@ -1,24 +1,67 @@
 {
-  "board": {},
+  "board": {
+    "design_settings": {
+      "defaults": {
+        "board_outline_line_width": 0.1,
+        "copper_line_width": 0.25,
+        "silk_line_width": 0.12,
+        "silk_text_size_h": 1.0,
+        "silk_text_size_v": 1.0
+      },
+      "rules": {
+        "min_clearance": 0.2,
+        "min_track_width": 0.2,
+        "min_through_hole_diameter": 0.3,
+        "min_via_diameter": 0.5
+      }
+    }
+  },
   "boards": [],
-  "libraries": { "pinned_footprint_libs": [], "pinned_symbol_libs": [] },
-  "meta": { "filename": "recorder.kicad_pro", "version": 3 },
+  "libraries": {
+    "pinned_footprint_libs": [],
+    "pinned_symbol_libs": []
+  },
+  "meta": {
+    "filename": "recorder.kicad_pro",
+    "version": 3
+  },
   "net_settings": {
     "classes": [
-      { "name": "Default", "clearance": 0.2, "track_width": 0.25,
-        "via_diameter": 0.6, "via_drill": 0.3 },
-      { "name": "Power", "clearance": 0.3, "track_width": 0.8,
-        "via_diameter": 0.9, "via_drill": 0.5 }
+      {
+        "name": "Default",
+        "clearance": 0.2,
+        "track_width": 0.25,
+        "via_diameter": 0.6,
+        "via_drill": 0.3
+      },
+      {
+        "name": "Power",
+        "clearance": 0.3,
+        "track_width": 0.8,
+        "via_diameter": 0.9,
+        "via_drill": 0.5
+      }
     ],
-    "meta": { "version": 4 }
+    "meta": {
+      "version": 4
+    }
   },
-  "pcbnew": { "page_layout_descr_file": "" },
+  "pcbnew": {
+    "page_layout_descr_file": ""
+  },
   "schematic": {
     "legacy_lib_dir": "",
     "legacy_lib_list": [],
-    "meta": { "version": 1 },
+    "meta": {
+      "version": 1
+    },
     "page_layout_descr_file": ""
   },
-  "sheets": [ [ "29abc61b-1706-ab98-b806-6ff5b7baa0f5", "Root" ] ],
+  "sheets": [
+    [
+      "29abc61b-1706-ab98-b806-6ff5b7baa0f5",
+      "Root"
+    ]
+  ],
   "text_variables": {}
 }

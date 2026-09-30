@@ -3028,7 +3028,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "recorder:RPi_Pico_Headers"
       (at 139.7 109.22 0)
       (effects
         (font
@@ -3092,7 +3092,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
       (at 104.14 96.52 0)
       (effects
         (font
@@ -3587,7 +3587,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
       (at 243.84 60.96 0)
       (effects
         (font
@@ -3651,7 +3651,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "LED_THT:LED_D3.0mm"
       (at 259.08 60.96 0)
       (effects
         (font
@@ -3760,7 +3760,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
       (at 243.84 76.2 0)
       (effects
         (font
@@ -3824,7 +3824,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "LED_THT:LED_D3.0mm"
       (at 259.08 76.2 0)
       (effects
         (font
@@ -3933,7 +3933,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
       (at 243.84 91.44 0)
       (effects
         (font
@@ -3997,7 +3997,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "LED_THT:LED_D3.0mm"
       (at 259.08 91.44 0)
       (effects
         (font
@@ -4106,7 +4106,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
       (at 243.84 106.68 0)
       (effects
         (font
@@ -4170,7 +4170,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "LED_THT:LED_D3.0mm"
       (at 259.08 106.68 0)
       (effects
         (font
@@ -4279,7 +4279,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
       (at 243.84 121.92 0)
       (effects
         (font
@@ -4343,7 +4343,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "LED_THT:LED_D3.0mm"
       (at 259.08 121.92 0)
       (effects
         (font
@@ -4462,7 +4462,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Button_Switch_THT:SW_PUSH_6mm"
       (at 55.88 71.12 0)
       (effects
         (font
@@ -4591,7 +4591,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Button_Switch_THT:SW_PUSH_6mm"
       (at 55.88 91.44 0)
       (effects
         (font
@@ -4720,7 +4720,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Button_Switch_THT:SW_DIP_SPSTx01_Slide_9.78x4.72mm_W7.62mm_P2.54mm"
       (at 55.88 111.76 0)
       (effects
         (font
@@ -4859,7 +4859,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical"
       (at 243.84 144.78 0)
       (effects
         (font
@@ -4902,7 +4902,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal"
       (at 218.44 142.24 0)
       (effects
         (font
@@ -5111,7 +5111,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
       (at 60.96 160.02 0)
       (effects
         (font
@@ -5326,7 +5326,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Connector_Wire:SolderWire-0.75sqmm_1x02_P7mm_D1.25mm_OD3.5mm"
       (at 60.96 205.74 0)
       (effects
         (font
@@ -5369,7 +5369,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Fuse:Fuseholder_Blade_Mini_Keystone_3568"
       (at 40.64 205.74 0)
       (effects
         (font
@@ -5519,7 +5519,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm"
       (at 132.08 187.96 0)
       (effects
         (font
@@ -5638,7 +5638,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
       (at 152.4 187.96 0)
       (effects
         (font
@@ -5757,7 +5757,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Capacitor_THT:CP_Radial_D6.3mm_P2.50mm"
       (at 172.72000000000003 187.96 0)
       (effects
         (font
@@ -5910,7 +5910,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm"
       (at 193.04000000000002 187.96 0)
       (effects
         (font
@@ -6055,7 +6055,7 @@
         )
       )
     )
-    (property "Value" "SMAJ5.0CA"
+    (property "Value" "P6KE6.8CA"
       (at 213.36 193.04 0)
       (effects
         (font
@@ -6063,7 +6063,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Diode_THT:D_DO-15_P10.16mm_Horizontal"
       (at 213.36 187.96 0)
       (effects
         (font
@@ -6256,7 +6256,7 @@
         )
       )
     )
-    (property "Footprint" ""
+    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical"
       (at 243.84 215.9 0)
       (effects
         (font

@@ -71,6 +71,8 @@ def pin_xy(lib_id, at, num, mirror_y=False):
 
 def place(lib_id, ref, value, at, mirror_y=False, hide_ref=False,
           footprint=''):
+    if not footprint:
+        footprint = FOOTPRINTS.get(ref, '')
     node, _ = get_symbol(lib_id)
     used_libs[lib_id] = node
     u = uuid()
@@ -156,6 +158,33 @@ def power(lib_id, at, mirror=False):
     name = lib_id.split(':')[1]
     place(lib_id, '#PWR', name, at, mirror_y=mirror, hide_ref=True)
     return pin_xy(lib_id, at, '1', mirror)
+
+
+# ================================================================= フットプリント
+# 全てスルーホール。初めての基板をハンダ付け1工程で組めるようにするため。
+# ⚠️ J2(降圧モジュール)は実物を測っていないので暫定。J3はピグテールを直付けする想定。
+FOOTPRINTS = {
+    'U1': 'recorder:RPi_Pico_Headers',
+    'R1': 'Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal',
+    'D1': 'LED_THT:LED_D3.0mm',
+    'C1': 'Capacitor_THT:CP_Radial_D10.0mm_P5.00mm',
+    'C2': 'Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm',
+    'C3': 'Capacitor_THT:CP_Radial_D6.3mm_P2.50mm',
+    'C4': 'Capacitor_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm',
+    'D6': 'Diode_THT:D_DO-15_P10.16mm_Horizontal',
+    'F1': 'Fuse:Fuseholder_Blade_Mini_Keystone_3568',
+    'SW1': 'Button_Switch_THT:SW_PUSH_6mm',
+    'SW2': 'Button_Switch_THT:SW_PUSH_6mm',
+    'SW3': 'Button_Switch_THT:SW_DIP_SPSTx01_Slide_9.78x4.72mm_W7.62mm_P2.54mm',
+    'J1': 'Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical',
+    'J2': 'Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical',
+    'J3': 'Connector_Wire:SolderWire-0.75sqmm_1x02_P7mm_D1.25mm_OD3.5mm',
+    'J4': 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical',
+}
+for _r in ('R2', 'R3', 'R4', 'R5', 'R6', 'R7'):
+    FOOTPRINTS[_r] = FOOTPRINTS['R1']
+for _d in ('D2', 'D3', 'D4', 'D5'):
+    FOOTPRINTS[_d] = FOOTPRINTS['D1']
 
 ROOT_UUID = uuid()
 
@@ -336,9 +365,9 @@ for i, (ref, lib, val, net) in enumerate(CAPS):
 # ⚠️ クランプ電圧はPicoの絶対最大(5.5V)より高いので、Picoの延命は保証できない。
 # 主目的は「そのまま12Vが載り続ける状態」を断つことと、活線挿抜サージの吸収。
 TVX, TVY = 213.36, 187.96
-# KiCadのD_TVSは双方向シンボル。双方向品(SMAJ5.0CA)を指定して図と部品を一致させる。
+# KiCadのD_TVSは双方向シンボル。双方向品(P6KE6.8CA, DO-15)を指定して図と部品を一致させる。
 # 双方向は実装時に極性を間違えようがないという利点もある。
-place('Device:D_TVS', 'D6', 'SMAJ5.0CA', (TVX, TVY, 90))
+place('Device:D_TVS', 'D6', 'P6KE6.8CA', (TVX, TVY, 90))
 tv1 = pin_xy('Device:D_TVS', (TVX, TVY, 90), '1')
 tv2 = pin_xy('Device:D_TVS', (TVX, TVY, 90), '2')
 top_pin, bot_pin = (tv1, tv2) if tv1[1] < tv2[1] else (tv2, tv1)

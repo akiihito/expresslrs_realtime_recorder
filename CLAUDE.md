@@ -232,10 +232,14 @@ LiteRadioはジンバルが長いので適用しない。
 制御Pico（USBホスト＋CRSF）と記録Pico（フラッシュ保存）を分離する案を検討済み。USB HIDは1ホスト専有のためY分岐不可で、「制御Pico→UART横流し→記録Pico」の形。制御のタイミング完全絶縁・墜落耐性が利点。現状は単一Picoで進行、UART出力を中立に保ち後から発展可能にする方針。
 
 ## 回路図 / 基板
-- **回路図**: `hardware/recorder.kicad_pro`（KiCad 9）。KiCad無しで見る用に `hardware/recorder.pdf`。
-  ERCエラー0・警告0、ネットリストで全結線を確認済み。詳細と部品表は `hardware/README.md`。
-- **PCBアートワークは未着手**（自分でやる方針）。フットプリントも未割り当て。
-- ユニバーサル基板の配置は `docs/perfboard-layout.html`（GP3/GP6/GP13/GP14 が未反映なので要更新）。
+- **KiCad 9 プロジェクト**: `hardware/recorder.kicad_pro`。回路図・基板とも生成済み。
+  KiCad無しで見る用に `hardware/recorder.pdf`（回路図）/ `hardware/pcb-fab.pdf`（基板1:1）。
+- **検証**: 回路図ERC エラー0・警告0 / 基板DRC 違反0・未配線0 / ガーバー出力OK。
+  ネットリストで全結線を機械的に確認済み。詳細・部品表・発注前チェックは `hardware/README.md`。
+- 基板は **105×85mm・2層・全スルーホール**。裏面全面GNDベタでビア0。
+- ⚠️ **未発注・未検証**。J2(降圧モジュール)のフットプリントは実物未採寸の暫定。
+  発注前に `pcb-fab.pdf` を1:1印刷して実部品と照合すること。
+- ユニバーサル基板の配置図 `docs/perfboard-layout.html` は GP3(Armスイッチ)のみ未反映。
 
 ## Skills
 - `/build` - ファームウェアをビルド
