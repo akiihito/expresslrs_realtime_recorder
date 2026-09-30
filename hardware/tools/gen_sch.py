@@ -162,7 +162,8 @@ def power(lib_id, at, mirror=False):
 
 # ================================================================= フットプリント
 # 全てスルーホール。初めての基板をハンダ付け1工程で組めるようにするため。
-# ⚠️ J2(降圧モジュール)は実物を測っていないので暫定。J3はピグテールを直付けする想定。
+# J2(降圧モジュール)は購入品MP1584EN(22.3x16.8mm)を商品写真の画像解析で採寸して自作。
+# J3はLiPoピグテールを直付けする想定。
 FOOTPRINTS = {
     'U1': 'recorder:RPi_Pico_Headers',
     'R1': 'Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal',
@@ -177,7 +178,7 @@ FOOTPRINTS = {
     'SW2': 'Button_Switch_THT:SW_PUSH_6mm',
     'SW3': 'Button_Switch_THT:SW_DIP_SPSTx01_Slide_9.78x4.72mm_W7.62mm_P2.54mm',
     'J1': 'Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical',
-    'J2': 'Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical',
+    'J2': 'recorder:MP1584EN_Module',
     'J3': 'Connector_Wire:SolderWire-0.75sqmm_1x02_P7mm_D1.25mm_OD3.5mm',
     'J4': 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical',
 }
