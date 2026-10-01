@@ -124,45 +124,50 @@ P = 22          # 1穴あたりのpx
 M = 44
 W = M * 2 + (COLS - 1) * P
 H = M * 2 + (ROWS - 1) * P
-def hx(c): return M + (c - 1) * P
-def hy(r): return M + (r - 1) * P
 
-svg = []
-svg.append(f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">')
-svg.append(f'<rect x="{M-18}" y="{M-18}" width="{W-2*M+36}" height="{H-2*M+36}" rx="8" '
-           f'fill="var(--board)" stroke="var(--line)"/>')
-# 穴
-for c in range(1, COLS + 1):
-    for r in range(1, ROWS + 1):
-        svg.append(f'<circle cx="{hx(c)}" cy="{hy(r)}" r="3" fill="var(--hole)"/>')
-# 目盛り
-for c in range(1, COLS + 1, 5):
-    svg.append(f'<text x="{hx(c)}" y="{M-24}" text-anchor="middle" font-size="11" '
-               f'fill="var(--muted)">{c}</text>')
-for r in range(1, ROWS + 1, 5):
-    svg.append(f'<text x="{M-24}" y="{hy(r)+4}" text-anchor="middle" font-size="11" '
-               f'fill="var(--muted)">{r}</text>')
-# 部品枠
 COLORS = {'U1': '--pico', 'J1': '--crsf', 'R6': '--crsf', 'R7': '--crsf',
           'J2': '--pwr', 'J3': '--pwr', 'F1': '--pwr', 'C1': '--pwr', 'C2': '--pwr',
           'C3': '--pwr', 'C4': '--pwr', 'D6': '--pwr', 'J4': '--dbg'}
-for ref, c0, r0, c1, r1, nm in BOXES:
-    col = COLORS.get(ref, '--ui')
-    x, y = hx(c0) - 9, hy(r0) - 9
-    w_, h_ = (c1 - c0) * P + 18, (r1 - r0) * P + 18
-    svg.append(f'<rect x="{x}" y="{y}" width="{w_}" height="{h_}" rx="5" fill="none" '
-               f'stroke="var({col})" stroke-width="1.8" stroke-dasharray="5 3"/>')
-    svg.append(f'<text x="{x + 3}" y="{y - 4}" font-size="11.5" font-weight="600" '
-               f'fill="var({col})">{nm}</text>')
-# 使用する穴を塗る
-for ref, pins in place.items():
-    col = COLORS.get(ref, '--ui')
-    for pin, (c, r) in pins.items():
-        if ref == 'U1' and pin not in [p for _n, ns in nets.items() for _r, p in ns
-                                       if _r == 'U1']:
-            continue
-        svg.append(f'<circle cx="{hx(c)}" cy="{hy(r)}" r="5.5" fill="var({col})"/>')
-svg.append('</svg>')
+
+def build_svg(mirror=False):
+    """mirror=True ではんだ面（裏から見た図）。列が左右反転する。"""
+    def mc(c): return (COLS + 1 - c) if mirror else c
+    def hx(c): return M + (mc(c) - 1) * P
+    def hy(r): return M + (r - 1) * P
+    g = []
+    g.append(f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">')
+    g.append(f'<rect x="{M-18}" y="{M-18}" width="{W-2*M+36}" height="{H-2*M+36}" rx="8" '
+             f'fill="var(--board)" stroke="var(--line)"/>')
+    for c in range(1, COLS + 1):
+        for r in range(1, ROWS + 1):
+            g.append(f'<circle cx="{hx(c)}" cy="{hy(r)}" r="3" fill="var(--hole)"/>')
+    for c in range(1, COLS + 1, 5):
+        g.append(f'<text x="{hx(c)}" y="{M-24}" text-anchor="middle" font-size="11" '
+                 f'fill="var(--muted)">{c}</text>')
+    for r in range(1, ROWS + 1, 5):
+        g.append(f'<text x="{M-24}" y="{hy(r)+4}" text-anchor="middle" font-size="11" '
+                 f'fill="var(--muted)">{r}</text>')
+    for ref, c0, r0, c1, r1, nm in BOXES:
+        col = COLORS.get(ref, '--ui')
+        xa, xb = sorted((hx(c0), hx(c1)))
+        x, y = xa - 9, hy(r0) - 9
+        w_, h_ = (xb - xa) + 18, (r1 - r0) * P + 18
+        g.append(f'<rect x="{x}" y="{y}" width="{w_}" height="{h_}" rx="5" fill="none" '
+                 f'stroke="var({col})" stroke-width="1.8" stroke-dasharray="5 3"/>')
+        g.append(f'<text x="{x + 3}" y="{y - 4}" font-size="11.5" font-weight="600" '
+                 f'fill="var({col})">{nm}</text>')
+    used_pins = {(r, p) for ns in nets.values() for r, p in ns}
+    for ref, pins in place.items():
+        col = COLORS.get(ref, '--ui')
+        for pin, (c, r) in pins.items():
+            if (ref, pin) not in used_pins:
+                continue
+            g.append(f'<circle cx="{hx(c)}" cy="{hy(r)}" r="5.5" fill="var({col})"/>')
+    g.append('</svg>')
+    return ''.join(g)
+
+svg = [build_svg(False)]
+svg_back = build_svg(True)
 
 wire_rows = '\n'.join(
     f'<tr><td class="mono"><b>{n}</b></td><td class="mono">{cnt}</td><td>{ch}</td></tr>'
@@ -224,6 +229,36 @@ html = f"""<!doctype html>
 </div>
 
 <div class="fig">{''.join(svg)}</div>
+
+<h2>はんだ面（裏から見た図）</h2>
+<div class="note warn">
+<b>裏返すと左右が反転する。</b>上の図は部品面（表）から見たもの。実際に配線するのは裏なので、
+配線中はこちらの図を見ること。<b>行番号は変わらず、列番号だけ右から左に進む。</b>
+</div>
+<div class="fig">{svg_back}</div>
+
+<h2>配線のやり方</h2>
+<p class="lede">片面ユニバーサル基板の前提。<b>部品は表に挿し、配線は全部裏（はんだ面）</b>。</p>
+<table><thead><tr><th>用途</th><th>使うもの</th><th>理由</th></tr></thead><tbody>
+<tr><td>GND母線</td><td class="mono">すずメッキ線 φ0.6</td>
+    <td>太く低抵抗。直線で引ければ交差しないので裸線でよい</td></tr>
+<tr><td>電源 (+5V / VBAT)</td><td class="mono">被覆線 AWG24程度</td>
+    <td>電流が流れる。交差するので被覆必須</td></tr>
+<tr><td>信号</td><td class="mono">被覆線 AWG26〜30 / UEW(ポリウレタン線)</td>
+    <td>本数が多く交差する。UEWなら細くて取り回しが楽</td></tr>
+<tr><td>隣接する穴どうし</td><td class="mono">部品の足</td>
+    <td>切り落とさず曲げて隣へ渡す。線が減る</td></tr>
+</tbody></table>
+<div class="note">
+<b>足を使える箇所</b>（隣の穴なので線が要らない）:
+LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span> /
+<span class="mono">D2(3,18)-R2(4,18)</span> / <span class="mono">D3(3,20)-R3(4,20)</span> /
+<span class="mono">D4(3,22)-R4(4,22)</span> / <span class="mono">D5(3,24)-R5(4,24)</span>
+</div>
+<div class="note warn">
+<b>はんだブリッジで長い距離を繋がない。</b>隣の穴どうしなら可だが、何穴も盛って繋ぐのは
+後で剥がれる・短絡する。素直に線を使う。
+</div>
 
 <h2>配線リスト（GND以外）</h2>
 <p class="lede">同じネットの穴どうしを繋ぐ。→ の順に繋いでも、どの順でも電気的には同じ。</p>
