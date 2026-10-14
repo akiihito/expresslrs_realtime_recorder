@@ -316,14 +316,26 @@ LITERADIOプロファイルで CH1〜 へ素通しするようにした。
 
 目的: 記録フロー全体と切断時の安全動作を実機で確認。
 
-1. [ ] RECORD(赤LED)で数十秒操作 → `# recording started`。
-2. [ ] 短押しで抜ける → `# recording stopped, flushed N samples`（N>0）。
-3. [ ] PLAYBACK(緑LED) → `# playback ready: N samples`。
-4. [ ] **長押し**で再生開始 → Receiverタブで記録操作が再現。末尾で `# playback finished`。
-5. [ ] 電源再投入後もPLAYBACKでNが残る（フラッシュ永続）。
-6. [ ] フェイルセーフ: SIMPLEでArm状態にし**パッドを引き抜く** → 内蔵LED点滅・スロットル最小・Arm解除。再接続で復帰。
+1. [x] RECORD(赤LED)で数十秒操作 → `# recording started`。
+2. [x] 短押しで抜ける → `# recording stopped, flushed N samples`（N>0）。
+3. [x] PLAYBACK(緑LED) → `# playback ready: N samples`。
+4. [x] **長押し**で再生開始 → 末尾で `# playback finished`。
+5. [ ] 電源再投入後もPLAYBACKでNが残る（フラッシュ永続）。**未確認**
+6. [x] フェイルセーフ → **Stage Dで確認済み**（Arm中にパッドを引き抜き→即モーター停止、再接続で復帰）。
 
 > ✅ 合格条件: 記録→再生の一巡再現、切断で安全値、再接続で復帰。
+
+**実施記録 (2026-10-14): 記録→再生の一巡が実機で成功。** ボタン操作だけで
+RECORD→PLAYBACK→長押し再生まで通り、再生が最後まで走ることを確認した。
+
+⚠️ **この回はシリアルを記録していないため、以下は未検証のまま**:
+- `flushed N samples` の N が妥当か（50Hz記録なので N ≈ 50×記録秒数 になるはず）
+- 再生された値が記録時と一致しているか（波形の突き合わせ）
+- 手順5の電源再投入後の永続性
+
+次回、シリアルを記録しながら同じ操作を1回やれば上記3点はまとめて潰せる。
+
+**改善点あり（内容は次回整理）。** 操作感・仕様面で気づいた点があるとのこと。
 
 ---
 
