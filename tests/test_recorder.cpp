@@ -94,3 +94,40 @@ TEST(RecorderTest, IgnoresFramesWhenInactive) {
     for (int i = 0; i < 20; i++) recorder_on_frame(ch);
     EXPECT_EQ(0u, recorder_ram_sample_count());
 }
+
+// 記録を再開すると前の区間は捨てて録り直す（LBトリガーの「案A」）。
+// 一時停止/再開で区間を継ぎ足すと再生時に不連続なジャンプが起きるため、
+// 「最後に開始した所からの記録」にしている。
+TEST(RecorderTest, RestartDiscardsPreviousSegment) {
+    uint16_t ch[CRSF_NUM_CHANNELS];
+
+    recorder_start();
+    make_channels(ch, 0, CRSF_CHANNEL_MIN);
+    for (int i = 0; i < 20; i++) recorder_on_frame(ch);  // 第1区間: 2サンプル
+    EXPECT_EQ(2u, recorder_ram_sample_count());
+
+    recorder_start();                                    // 録り直し
+    EXPECT_EQ(0u, recorder_ram_sample_count());
+
+    make_channels(ch, 0, CRSF_CHANNEL_MAX);
+    for (int i = 0; i < 10; i++) recorder_on_frame(ch);  // 第2区間: 1サンプル
+    EXPECT_EQ(1u, recorder_ram_sample_count());
+    expect_sample_equals(0, ch);                         // 先頭は第2区間の値
+}
+
+// 記録再開時に、前回の端数窓（未確定フレーム）も持ち越さない。
+// 持ち越すと再開直後の1サンプルに前区間の値が混ざる。
+TEST(RecorderTest, RestartDropsPartialWindow) {
+    uint16_t ch[CRSF_NUM_CHANNELS];
+
+    recorder_start();
+    make_channels(ch, 6, CRSF_CHANNEL_MAX);              // CH7=スイッチch(最大値ホールド)
+    for (int i = 0; i < 5; i++) recorder_on_frame(ch);   // 端数5フレームだけ
+    EXPECT_EQ(0u, recorder_ram_sample_count());
+
+    recorder_start();
+    make_channels(ch, 6, CRSF_CHANNEL_MIN);
+    for (int i = 0; i < 10; i++) recorder_on_frame(ch);
+    EXPECT_EQ(1u, recorder_ram_sample_count());
+    expect_sample_equals(0, ch);                         // 前区間の押下が残っていない
+}

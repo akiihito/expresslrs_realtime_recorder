@@ -154,6 +154,18 @@ static uint32_t btn_last_change_ms = 0;
 static uint32_t btn_press_start_ms = 0;      // 押下開始時刻
 static bool     btn_long_fired = false;      // 今回の押下で長押しアクション済みか
 
+// 記録状態（RECORDモード中、ゲームパッドのLB or 'r' コマンドで開始/停止）。
+// RECORDモードに入っただけでは記録しない。モード切替の手間取りが記録に
+// 混ざって切れ目が分からなくなるため、LBを押した時点から記録する。
+static bool     recording_on = false;
+// この滞在中に一度でも記録したか。LBを押さずにRECORDを通過しただけのとき
+// フラッシュを空ログで上書きしないための印。
+static bool     rec_dirty = false;
+// 記録トリガー(LB)のエッジ検出用。Arm/トリムが使う prev_buttons とは別に持つ:
+// あちらは map_gamepad_to_channels でしか更新されず、LITERADIOプロファイル
+// （map_radio_to_channels）では止まってしまうため。
+static uint16_t rec_prev_buttons = 0;
+
 // 再生状態（PLAYBACKモードで長押し or 'p' コマンドにより開始/停止）
 static bool     playback_running = false;
 static uint32_t pb_sample_idx = 0;   // 次に送出するフラッシュサンプル番号
@@ -166,11 +178,62 @@ static void playback_toggle(void) {
         printf("# playback toggle ignored (not in PLAYBACK mode)\n");
         return;
     }
+    uint32_t n = recorder_flash_sample_count();
+    if (!playback_running && n == 0) {
+        // 空のまま開始すると緑LEDが点滅して「再生中」に見えるのに何も起きない。
+        // 受け付けられなかったことを出して、待機のまま留まる。
+        printf("# playback not started: no log in flash\n");
+        return;
+    }
     playback_running = !playback_running;
     if (playback_running) { pb_sample_idx = 0; pb_frame_ctr = 0; }
     printf("# playback %s (%u samples)\n",
-           playback_running ? "START" : "STOP",
-           (unsigned)recorder_flash_sample_count());
+           playback_running ? "START" : "STOP", (unsigned)n);
+}
+
+// 記録の開始/停止をトグル（RECORDモードでのみ有効）。
+// LB押下エッジと UART 'r' の両方から使う共通処理。
+//   開始: バッファをクリアして録り直す（=「最後に開始した所からの記録」）。
+//         一時停止/再開で区間を継ぎ足すと再生時に不連続なジャンプが起きる。
+//   停止: RAMへの追記を止めるだけ。
+// ⚠️ 停止でフラッシュに書いてはいけない。RP2040はフラッシュ書込み中にXIPが
+//    止まり500Hz送信が破綻するため、飛行中に書くと墜落する。書出しは従来どおり
+//    RECORDモードを抜けた時（=着地後）に行う。
+static void recording_toggle(void) {
+    if (current_mode != MODE_RECORD) {
+        printf("# record toggle ignored (not in RECORD mode)\n");
+        return;
+    }
+    if (!recording_on) {
+        recorder_start();          // バッファをクリアして記録開始
+        recording_on = true;
+        rec_dirty = true;
+        printf("# recording START (buffer cleared)\n");
+    } else {
+        recording_on = false;
+        printf("# recording STOP (%u samples in RAM, flushed on leaving RECORD)\n",
+               (unsigned)recorder_ram_sample_count());
+    }
+}
+
+// 記録トリガー(LB)のポーリング。押下エッジで記録のON/OFFを切り替える。
+// ショルダーボタンなら人差し指で押せるので、飛行中に親指をスティックから
+// 離さずに済む。Armが右親指のAボタンなので、手を分けて取り違えを防ぐため
+// 右のRBではなく左のLBを使う。
+// LiteRadio 3 では「ボタン5相当のスイッチ」が同じビット(bit4)で届く。
+static void poll_record_trigger(const gamepad_state_t *gamepad) {
+    if (!gamepad->connected) {
+        rec_prev_buttons = 0;  // 切断中はエッジを持ち越さない（再接続で誤発火しないように）
+        return;
+    }
+    uint16_t btn = gamepad->buttons;
+    // RECORD以外では黙って無視する（LBはCH11にも出るので press ごとに
+    // ログを吐くと飛行中のUARTが埋まる）。エッジ追跡は全モードで続ける。
+    if (current_mode == MODE_RECORD &&
+        (btn & GAMEPAD_BTN_LB) && !(rec_prev_buttons & GAMEPAD_BTN_LB)) {
+        recording_toggle();
+    }
+    rec_prev_buttons = btn;
 }
 
 // ========================================
@@ -586,6 +649,9 @@ static void dbg_poll_commands(void) {
             case 'p': case 'P':
                 playback_toggle();  // PLAYBACKモードでのみ有効
                 break;
+            case 'r': case 'R':
+                recording_toggle();  // RECORDモードでのみ有効（LBと同じ動作）
+                break;
             case 'i': case 'I':
                 input_profile_toggle();
                 break;
@@ -626,10 +692,13 @@ static void dbg_poll_commands(void) {
                 throttle_print_tuning();
                 break;
             case '?':
-                printf("# commands: d=snapshot  s=toggle stream  p=play/stop(PLAYBACK)"
-                       "  i=input profile  ?=help\n");
-                printf("# mode button(GP%d): short=cycle mode  long(%.1fs)=play/stop in PLAYBACK\n",
+                printf("# commands: d=snapshot  s=toggle stream  r=rec start/stop(RECORD)"
+                       "  p=play/stop(PLAYBACK)  i=input profile  ?=help\n");
+                printf("# mode button(GP%d): short=cycle mode  long(%.1fs)=play/stop in PLAYBACK"
+                       " (green LED: solid=idle  blink=playing)\n",
                        MODE_BTN_PIN, MODE_BTN_LONG_MS / 1000.0);
+                printf("# gamepad LB: rec start/stop in RECORD"
+                       " (red LED: slow blink=idle  solid=recording  fast=buffer full)\n");
                 printf("# input button(GP%d): switch GENERIC(hover-center) <->"
                        " LITERADIO(direct) [now: %s]\n",
                        INPUT_BTN_PIN, input_name(current_input));
@@ -710,6 +779,25 @@ static void update_input_leds(void) {
     gpio_put(LED_INPUT_LITERADIO_PIN, current_input == INPUT_LITERADIO);
 }
 
+// RECORDモードの赤LED(GP10)で記録状態を3通りに見せる。
+//   待機(未記録) = ゆっくり点滅 / 記録中 = 点灯 / バッファ満杯 = 速い点滅
+static void update_record_led(uint32_t now) {
+    bool on;
+    if (recorder_is_full())  on = (now / 150) % 2;   // 満杯: 速い点滅で警告
+    else if (recording_on)   on = true;              // 記録中: 点灯
+    else                     on = (now / 600) % 2;   // 待機: ゆっくり点滅
+    gpio_put(LED_RECORD_PIN, on);
+}
+
+// PLAYBACKモードの緑LED(GP11)で再生状態を2通りに見せる。
+//   待機 = 点灯 / 再生中 = 点滅
+// モードに入っただけでは点灯のままなので、長押し(or 'p')が受け付けられたことが
+// その場で分かる。末尾まで再生して自動停止したら点灯に戻る。
+// 内蔵LEDの再生モード表示と同じ周期にして、2つが揃って点滅するようにしている。
+static void update_playback_led(uint32_t now) {
+    gpio_put(LED_PLAYBACK_PIN, playback_running ? (now / 250) % 2 : 1);
+}
+
 static void init_mode_io(void) {
     // ボタン: 入力 + 内部プルアップ（押下でLowに落ちる）
     gpio_init(MODE_BTN_PIN);
@@ -764,15 +852,25 @@ static void mode_advance(void) {
     update_mode_leds();
     printf("# mode -> %s\n", mode_name(current_mode));
 
-    // RECORDから抜けたら記録停止＋フラッシュ書出し
+    // RECORDから抜けたら記録を止め、録れていればフラッシュへ書き出す。
+    // LBを押さずに通過しただけなら書かない（SIMPLE→RECORD→PLAYBACKと
+    // 循環するだけで保存済みログを空ログに潰してしまわないように）。
     if (prev == MODE_RECORD && current_mode != MODE_RECORD) {
-        size_t n = recorder_stop_and_flush();
-        printf("# recording stopped, flushed %u samples to flash\n", (unsigned)n);
+        recording_on = false;
+        if (rec_dirty) {
+            size_t n = recorder_stop_and_flush();
+            printf("# recording stopped, flushed %u samples to flash\n", (unsigned)n);
+        } else {
+            printf("# nothing recorded, flash log kept (%u samples)\n",
+                   (unsigned)recorder_flash_sample_count());
+        }
     }
-    // RECORDに入ったら記録開始（バッファクリア）
+    // RECORDに入ったら「待機」から始める（記録開始はLB or 'r'）
     if (current_mode == MODE_RECORD && prev != MODE_RECORD) {
-        recorder_start();
-        printf("# recording started\n");
+        recorder_init();       // バッファを空にする
+        recording_on = false;
+        rec_dirty = false;
+        printf("# RECORD ready: press LB (or 'r') to start/stop recording\n");
     }
     // PLAYBACKに入ったら再生を待機状態にし、保存済みサンプル数を表示
     if (current_mode == MODE_PLAYBACK) {
@@ -880,6 +978,9 @@ int main() {
             // ゲームパッド状態を取得
             const gamepad_state_t *gamepad = usb_gamepad_get_state();
 
+            // 記録トリガー(LB): RECORD中のみ記録のON/OFFを切り替える
+            poll_record_trigger(gamepad);
+
             // 再生中に送出するフラッシュサンプル（無ければNULL）
             const uint8_t *pb_payload = NULL;
 
@@ -903,13 +1004,13 @@ int main() {
                         set_failsafe_channels();
                         gpio_put(LED_PIN, (now / 500) % 2);  // 点滅
                     }
-                    // 記録: 現在の16chを記録器へ（内部で50Hz間引き＋ボタンラッチ）
+                    // 記録: トリガーONの間だけ現在の16chを記録器へ
+                    //（内部で50Hz間引き＋ボタンラッチ）
                     if (current_mode == MODE_RECORD) {
-                        recorder_on_frame(crsf_channels);
-                        // バッファ満杯時は記録LEDを速い点滅で警告
-                        if (recorder_is_full()) {
-                            gpio_put(LED_RECORD_PIN, (now / 150) % 2);
+                        if (recording_on) {
+                            recorder_on_frame(crsf_channels);
                         }
+                        update_record_led(now);
                     }
                     break;
 
@@ -925,6 +1026,7 @@ int main() {
                         crsf_channels[2] = CRSF_CHANNEL_MIN;
                     }
                     gpio_put(LED_PIN, (now / 250) % 2);   // 速い点滅=再生モード
+                    update_playback_led(now);             // 緑: 点滅=再生中 / 点灯=待機
                     break;
 
                 default:

@@ -49,13 +49,13 @@
 <table>
   <tr><th>操作</th><th>動作</th></tr>
   <tr><td class="k">GP2 短押し</td><td>モード循環 SIMPLE→RECORD→PLAYBACK</td></tr>
-  <tr><td class="k">GP2 長押し<br><span class="soft">0.6秒</span></td><td>PLAYBACK中に再生 start / stop</td></tr>
+  <tr><td class="k">GP2 長押し<br><span class="soft">0.6秒</span></td><td>PLAYBACK中に再生 start / stop<br><span class="soft">緑LEDが点滅に変わる＝受け付けた</span></td></tr>
   <tr><td class="k">GP6 短押し</td><td>入力プロファイル切替<br>GENERIC ⇔ LITERADIO</td></tr>
 </table>
 <table>
   <tr><th>LED</th><th>意味</th></tr>
-  <tr><td class="k">GP10 赤</td><td>RECORD（記録中）</td></tr>
-  <tr><td class="k">GP11 緑</td><td>PLAYBACK（再生モード）</td></tr>
+  <tr><td class="k">GP10 赤</td><td>RECORD モード<br>ゆっくり点滅=待機 / 点灯=記録中 / 速点滅=バッファ満杯</td></tr>
+  <tr><td class="k">GP11 緑</td><td>PLAYBACK モード<br>点灯=待機 / 点滅=再生中</td></tr>
   <tr><td class="k">GP12 青</td><td>SIMPLE（パススルー）</td></tr>
   <tr><td class="k">GP13</td><td>GENERIC（ゲームパッド）</td></tr>
   <tr><td class="k">GP14</td><td>LITERADIO（送信機）</td></tr>
@@ -77,7 +77,8 @@
   <tr><td class="k">B</td><td class="ch">CH8 / AUX4</td><td>未割当</td></tr>
   <tr><td class="k">X</td><td class="ch">CH9 / AUX5</td><td>未割当</td></tr>
   <tr><td class="k">Y</td><td class="ch">CH10 / AUX6</td><td>未割当</td></tr>
-  <tr><td class="k">LB / RB</td><td class="ch">CH11,12 / AUX7,8</td><td>未割当</td></tr>
+  <tr><td class="k">LB</td><td class="ch">CH11 / AUX7</td><td><strong>記録 start / stop トグル</strong>（RECORD モード中のみ。他モードでは無視）</td></tr>
+  <tr><td class="k">RB</td><td class="ch">CH12 / AUX8</td><td>未割当</td></tr>
 </table>
 <p class="soft">CH5/CH6（AUX1/AUX2）はトリガー用だが F310 の L2/R2 はデジタルのため常に中央値。CH13〜16 は未使用（中央値）。</p>
 
@@ -85,6 +86,15 @@
   <strong>⚠️ Arm はスロットルスティックを下に押さえたまま行う</strong>
   中央がホバリング推力（約1200us）なので、中央のままだと Betaflight がスロットル高として Arm を拒否する（ビープで通知）。<br>
   <strong>手順:</strong> ①スロットルを下に押さえる → ②A を押して Arm → ③ゆっくり離すとホバリングまで上がって離陸
+</div>
+
+<div class="warn">
+  <strong>記録は LB を押した時点から</strong>
+  RECORD モードに入っただけでは記録しない（赤LEDがゆっくり点滅＝待機）。LB で start / stop し、
+  <strong>開始のたびにバッファはクリア</strong>される＝「最後に開始した所からの記録」。<br>
+  フラッシュへの書き出しは<strong>RECORD モードを抜けた時</strong>（着地後）。飛行中に書くと
+  500Hz 送信が破綻するため、LB の停止では書かない。LB を一度も押さずに通過した時は
+  保存済みログを残す（空ログで潰さない）。
 </div>
 </section>
 
@@ -96,7 +106,7 @@
   <tr><td class="k">右スティック ↑↓</td><td class="ch">CH2 Pitch</td><td>182 / 1803</td></tr>
   <tr><td class="k">左スティック ↑↓</td><td class="ch">CH3 Throttle</td><td>172 / 1811（絶対値・位置保持）</td></tr>
   <tr><td class="k">左スティック ←→</td><td class="ch">CH4 Yaw</td><td>172 / 1811</td></tr>
-  <tr><td class="k">送信機スイッチ</td><td class="ch">CH7〜CH12</td><td>ボタンとして届く</td></tr>
+  <tr><td class="k">送信機スイッチ</td><td class="ch">CH7〜CH12</td><td>ボタンとして届く。<strong>ボタン5相当（CH11）が記録 start/stop</strong><br><span class="soft">どのスイッチかは <code>d</code> スナップショットの BTN 値で確認</span></td></tr>
 </table>
 <div class="warn">
   <strong>⚠️ LiteRadio 3 使用時は必ず GP6 で LITERADIO に切り替える</strong>
@@ -118,7 +128,8 @@
 <h3>モード・プロファイル</h3>
 <table>
   <tr><td class="k">i</td><td>入力プロファイル切替（GP6ボタンと同じ）</td></tr>
-  <tr><td class="k">p</td><td>再生 start / stop（PLAYBACK モード時のみ）</td></tr>
+  <tr><td class="k">r</td><td>記録 start / stop（RECORD モード時のみ。ゲームパッドの LB と同じ）</td></tr>
+  <tr><td class="k">p</td><td>再生 start / stop（PLAYBACK モード時のみ。ログが無い時は開始しない）</td></tr>
 </table>
 
 <h3>スロットル調整 <span class="soft">（GENERIC時のみ有効）</span></h3>
