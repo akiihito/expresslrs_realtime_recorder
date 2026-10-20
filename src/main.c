@@ -91,6 +91,27 @@
 // 大きいほど中央付近が緩やかになり、ホバリング付近の微調整がしやすい。
 #define THROTTLE_EXPO_DEFAULT_PCT    75
 
+// 上側（上昇方向）の可動幅[%]。中央(ホバリング)から上端までが、CRSF全幅の何%か。
+//
+// ⚠️ これが無いと上下の可動幅が極端に非対称になる。ホバリングは中央より下
+// （既定20%）にあるので、上端=CRSF最大のままだと **下側20ポイントに対し上側80
+// ポイント＝上が4倍敏感**。さらに推力はスロットルのほぼ2乗で効くため、低い
+// ホバリング点からの増加は相対的に激しくなる。実測相当の試算（推力∝スロットル²、
+// ホバリング20%=1g）では、上に半分倒すだけで **正味+1.95g**（重力の3倍の推力）
+// に達していた。実飛行 2026-10-20 で「少し倒すと加速がすごく制御できない」
+// となったのはこれが原因。
+//
+// エクスポはカーブの形を変えるだけで**上端の値は変えられない**ので、舵角に
+// STICK_SCALE を入れたのと同じ理屈で、上側の幅そのものを絞る。
+// 既定15%（上端=ホバリング+15ポイント）での試算:
+//   上25%→+0.06g / 上50%→+0.28g / 上75%→+0.81g / 上100%→+2.04g
+// 下側は -0.09g / -0.33g / -1.00g(自由落下) なので、中間の倒し量で上下の
+// 加速がほぼ対称になる。位置型スロットルとしてはこれが狙い。
+//
+// 代償: フルスロットルに届かない（上端=35%）。室内のホバリング用途では問題
+// ないが、パンチアウトはできない。飛行中にUARTの `5`/`6` で変えられる。
+#define THROTTLE_UP_RANGE_DEFAULT_PCT 15
+
 // ロール/ピッチ/ヨーのエクスポ量[%]（GENERIC時のみ）。
 // ゲームパッドのスティックは実機プロポのジンバルよりストロークが遥かに短く、
 // 同じ親指の動きでも操作量の割合が何倍にもなるため極端に敏感になる
@@ -130,6 +151,7 @@ static uint32_t ibtn_last_change_ms = 0;
 // 電源を切ると既定値に戻る。詰まった値は上の DEFAULT に焼き直すこと。
 static uint32_t throttle_hover_pct = THROTTLE_HOVER_DEFAULT_PCT;
 static uint32_t throttle_expo_pct  = THROTTLE_EXPO_DEFAULT_PCT;
+static uint32_t throttle_up_range_pct = THROTTLE_UP_RANGE_DEFAULT_PCT;
 static uint32_t stick_expo_pct     = STICK_EXPO_DEFAULT_PCT;
 static uint32_t stick_scale_pct    = STICK_SCALE_DEFAULT_PCT;
 
@@ -310,8 +332,17 @@ static uint16_t throttle_hover_crsf(void) {
                       * (int32_t)throttle_hover_pct / 100);
 }
 
+// 上側の可動幅の上端に対応するCRSF値（中央=ホバリングから上へ何ポイントか）
+static uint16_t throttle_top_crsf(void) {
+    int32_t top = (int32_t)throttle_hover_crsf()
+                + (int32_t)(CRSF_CHANNEL_MAX - CRSF_CHANNEL_MIN)
+                  * (int32_t)throttle_up_range_pct / 100;
+    if (top > CRSF_CHANNEL_MAX) top = CRSF_CHANNEL_MAX;
+    return (uint16_t)top;
+}
+
 // 汎用ゲームパッド用のスロットル。中央をホバリング推力に割り当てた位置型。
-//   下端 → CRSF最小 / 中央 → ホバリング / 上端 → CRSF最大
+//   下端 → CRSF最小 / 中央 → ホバリング / 上端 → ホバリング+上側の可動幅
 // 倒し量が「上昇・下降の速さ」になり、手を離せばホバリング推力に戻る。
 // 積分器を挟まないので、プロポと同じ操作感になる。
 static uint16_t throttle_from_position(int16_t stick_up) {
@@ -328,10 +359,11 @@ static uint16_t throttle_from_position(int16_t stick_up) {
     mag = apply_expo(mag, throttle_expo_pct);
 
     // 上下で可動幅が違う（ホバリングは中央より下にあるのが普通）ため、
-    // それぞれの側の幅に対して比例させる。
+    // それぞれの側の幅に対して比例させる。上側は THROTTLE_UP_RANGE_PCT で
+    // 絞る（絞らないと上が4倍敏感になる。定数のコメント参照）。
     int32_t out;
     if (stick_up >= 0) {
-        out = hover + (int32_t)(CRSF_CHANNEL_MAX - hover) * mag / 32767;
+        out = hover + (int32_t)(throttle_top_crsf() - hover) * mag / 32767;
     } else {
         out = hover - (int32_t)(hover - CRSF_CHANNEL_MIN) * mag / 32767;
     }
@@ -351,16 +383,22 @@ static unsigned crsf_to_us(uint16_t v) {
 // 倒したときの出力も併記して、飛ばす前に想像がつくようにする。
 static void throttle_print_tuning(void) {
     uint16_t hover = throttle_hover_crsf();
-    printf("# throttle: hover=%u%% (CRSF %u, ~%uus) expo=%u%%\n",
+    uint16_t top   = throttle_top_crsf();
+    printf("# throttle: hover=%u%% (CRSF %u, ~%uus) expo=%u%% up-range=%u%% (top=%u%%)\n",
            (unsigned)throttle_hover_pct, hover, crsf_to_us(hover),
-           (unsigned)throttle_expo_pct);
+           (unsigned)throttle_expo_pct, (unsigned)throttle_up_range_pct,
+           (unsigned)((top - CRSF_CHANNEL_MIN) * 100
+                      / (CRSF_CHANNEL_MAX - CRSF_CHANNEL_MIN)));
     const int pcts[5] = { -100, -50, 0, 50, 100 };
     printf("#   thr stick");
     for (int i = 0; i < 5; i++) {
         int32_t stick = (int32_t)pcts[i] * 32767 / 100;
         if (stick < -32768) stick = -32768;
         uint16_t out = throttle_from_position((int16_t)stick);
-        printf("  %+d%%:%uus", pcts[i], crsf_to_us(out));
+        // us だけでは判断しづらいのでスロットル%も併記する
+        printf("  %+d%%:%uus(%u%%)", pcts[i], crsf_to_us(out),
+               (unsigned)((out - CRSF_CHANNEL_MIN) * 100
+                          / (CRSF_CHANNEL_MAX - CRSF_CHANNEL_MIN)));
     }
     printf("\n");
 
@@ -672,6 +710,16 @@ static void dbg_poll_commands(void) {
                 throttle_expo_pct = (throttle_expo_pct <= 75) ? throttle_expo_pct + 25 : 100;
                 throttle_print_tuning();
                 break;
+            case '5':  // 上昇方向の可動幅を狭める（上に倒した時の加速が強すぎるとき）
+                throttle_up_range_pct = (throttle_up_range_pct >= 10)
+                                        ? throttle_up_range_pct - 5 : 5;
+                throttle_print_tuning();
+                break;
+            case '6':  // 同 広げる（上昇が遅くて物足りないとき）
+                throttle_up_range_pct = (throttle_up_range_pct <= 95)
+                                        ? throttle_up_range_pct + 5 : 100;
+                throttle_print_tuning();
+                break;
             case '7':  // 舵角を絞る（全体的に効きすぎるときはこちら）
                 stick_scale_pct = (stick_scale_pct >= 25) ? stick_scale_pct - 5 : 20;
                 throttle_print_tuning();
@@ -703,8 +751,9 @@ static void dbg_poll_commands(void) {
                        " LITERADIO(direct) [now: %s]\n",
                        INPUT_BTN_PIN, input_name(current_input));
                 printf("# tuning: [=hover- ]=hover+ ,/.=throttle-expo"
-                       " 7/8=stick-scale 9/0=stick-expo t=show\n");
-                printf("#   softer: . (throttle) / 7 (less travel) / 0 (more expo)\n");
+                       " 5/6=throttle-up-range 7/8=stick-scale 9/0=stick-expo t=show\n");
+                printf("#   softer: . (throttle expo) / 5 (less climb authority)"
+                       " / 7 (less travel) / 0 (more expo)\n");
                 break;
             default:
                 break;

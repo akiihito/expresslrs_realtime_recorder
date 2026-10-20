@@ -70,7 +70,7 @@
   <tr><th>操作</th><th class="ch">チャンネル</th><th>動作</th></tr>
   <tr><td class="k">右スティック ←→</td><td class="ch">CH1 Roll</td><td>ロール</td></tr>
   <tr><td class="k">右スティック ↑↓</td><td class="ch">CH2 Pitch</td><td>ピッチ</td></tr>
-  <tr><td class="k">左スティック ↑↓</td><td class="ch">CH3 Throttle</td><td><strong>中央 = ホバリング推力</strong>。下端=最小 / 上端=最大。手を離すとホバリング値に戻る</td></tr>
+  <tr><td class="k">左スティック ↑↓</td><td class="ch">CH3 Throttle</td><td><strong>中央 = ホバリング推力</strong>。下端=最小 / 上端=ホバリング+15%（上側は加速が強すぎるため制限）。手を離すとホバリング値に戻る</td></tr>
   <tr><td class="k">左スティック ←→</td><td class="ch">CH4 Yaw</td><td>ヨー</td></tr>
   <tr><td class="k">D-pad ↑ / ↓</td><td class="ch">—</td><td><strong>ホバリング推力トリム ±1%</strong>（飛行中の電圧降下を補正）</td></tr>
   <tr><td class="k">A</td><td class="ch">CH7 / AUX3</td><td><strong>Arm トグル</strong>（1回=Arm、もう1回=Disarm）</td></tr>
@@ -138,7 +138,12 @@
   <tr><td class="k">]</td><td>ホバリング推力を<strong>上げる</strong>（1%）— 手を離すと沈むとき</td></tr>
   <tr><td class="k">.</td><td>スロットルのエクスポを<strong>強く</strong>（中央付近が緩やかに）</td></tr>
   <tr><td class="k">,</td><td>同 <strong>弱く</strong>（線形寄り＝鋭くなる）</td></tr>
+  <tr><td class="k">5</td><td>上昇方向の可動幅を<strong>狭める</strong>（5%刻み）— <strong>上に倒した時の加速が強すぎるときはこれ</strong></td></tr>
+  <tr><td class="k">6</td><td>同 <strong>広げる</strong>（上昇が遅くて物足りないとき。上端=ホバリング+この幅）</td></tr>
 </table>
+<p class="soft">上側だけ絞るのは、ホバリングが中央より下にあるぶん上側の可動幅が広く
+（既定20%なら下20ポイント対上80ポイント）、しかも推力がスロットルの2乗で効くため。
+既定15%で 上50%→+0.28g / 上100%→+2.04g（下50%→−0.33g と対称）。</p>
 
 <h3>舵（ロール／ピッチ／ヨー）調整 <span class="soft">（GENERIC時のみ有効）</span></h3>
 <table>
@@ -149,8 +154,8 @@
 </table>
 
 <div class="warn">
-  <strong>柔らかくする方向 → <code>[</code> <code>.</code> <code>7</code> <code>0</code></strong>
-  鋭くする方向 → <code>,</code> <code>8</code> <code>9</code>（<code>]</code> はホバリング推力を上げる＝浮く方向で意味が異なる）<br>
+  <strong>柔らかくする方向 → <code>[</code> <code>.</code> <code>5</code> <code>7</code> <code>0</code></strong>
+  鋭くする方向 → <code>,</code> <code>6</code> <code>8</code> <code>9</code>（<code>]</code> はホバリング推力を上げる＝浮く方向で意味が異なる）<br>
   <span class="soft">調整値は電源を切ると既定値に戻る。良い値が出たらソースの <code>*_DEFAULT_PCT</code> に焼き直すこと。</span>
 </div>
 </section>
