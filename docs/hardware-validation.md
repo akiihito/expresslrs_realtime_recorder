@@ -26,7 +26,7 @@
 
 ### 入力プロファイル切替（新規）
 - [ ] **GP6(pin9)** → タクトSW → GND（**pin8がGND**で隣接）。
-- [ ] **GP13(pin17)** → LED（汎用/積算）→ 100Ω → GND(pin18)。
+- [ ] **GP13(pin17)** → LED（汎用/中央=ホバリング）→ 100Ω → GND(pin18)。
 - [ ] **GP14(pin19)** → LED（LiteRadio/絶対値）→ 100Ω → GND(pin18)。
 - ※ pin18 が GP13/GP14 の間にあるので、2つのLEDのカソードをここに集約できる。
 
@@ -46,6 +46,8 @@ micro-USB はゲームパッド専有のため、書き込み時のみ手順が�
 ## 2. 起動・デバッグUART確認
 
 1. [ ] USB-シリアル変換を PC に接続し、`./scripts/monitor.sh`（921600bps）。
+   ⚠️ **手元のFTDI変換器は分周器バグでボーレートが8倍ずれる**ため
+   `./scripts/monitor.sh 115200` を指定する（線上は921600bpsのまま）。
 2. [ ] 起動バナーと `Mode: SIMPLE ...`、`CRSF UART initialized...`、`signal inversion: ON` が出る。
 3. [ ] `?` を送るとコマンド一覧が返る。
 
@@ -56,17 +58,24 @@ micro-USB はゲームパッド専有のため、書き込み時のみ手順が�
 1. [ ] 起動直後は **青LED(GP12=SIMPLE)** 点灯。
 2. [ ] ボタン短押しごとに `# mode -> RECORD/PLAYBACK/SIMPLE` が出て、**赤→緑→青**とLEDが移る。
 3. [ ] PLAYBACK に入ると `# playback ready: N samples in flash` が出る（初回は N=0）。
+4. [ ] RECORD の赤LEDは**ゆっくり点滅**（=まだ記録していない）、PLAYBACK の緑LEDは**点灯**（=待機）。
+   点灯/点滅の意味は §8 参照。
 
 ---
 
 ## 3.5 入力プロファイル切替（ボタン＋LED2つ）
 
-1. [ ] 起動直後は **GP13のLED点灯**（GENERIC=積算）。バナーに `Input: GENERIC(accum)`。
+1. [ ] 起動直後は **GP13のLED点灯**（GENERIC）。バナーに `Input: GENERIC(hover-center)`。
 2. [ ] GP6短押しごとに `# input -> ...` が出て、GP13 ⇔ GP14 のLEDが入れ替わる。
-3. [ ] GENERIC時のスロットル挙動: 左スティックを上に倒し**続ける**とCH3が増え続け、
-       **中央に戻すとその値を保持**。下に倒すと減る。フルデフレクションで最小→最大が約2秒。
-4. [ ] 中央付近の微小な揺れでCH3が動かない（不感帯が効いている）。
-5. [ ] Disarm（Aボタン）でCH3が最小に戻る。ゲームパッドを抜いても最小に戻る。
+3. [ ] GENERIC時のスロットル挙動（**中央=ホバリング推力の位置型**）:
+       左スティックを**離した状態（中央）でCH3がホバリング値**（既定20% ≒ 1199us）。
+       下端で最小(172)、上端で最大(1811)。**倒した量に比例した位置で止まり、離すと中央値に戻る**。
+       → ⚠️ 2026-08-27に廃止した**積算方式**（倒し続けると増え続け、中央で保持）ではない。
+       理由はCLAUDE.md「経緯: 積算方式はなぜ失敗したか」参照。
+4. [ ] 中央±約9%でCH3がホバリング値から動かない（不感帯が効いている）。
+5. [ ] D-pad上下で `# hover trim -> N%` が出て、中央値が±1%ずつ動く。
+6. [ ] `t` で現在のホバリング/エクスポ/舵角スケールと各スティック位置の出力[us]が表示される。
+7. [ ] ゲームパッドを抜くとCH3が最小(172)・CH7(Arm)が最小に戻る（フェイルセーフ）。
 
 ---
 
@@ -82,31 +91,38 @@ SIMPLE モードで、ゲームパッドを操作しながら `d` を送る。
 
 ---
 
-## 5. ⚠️ CRSF反転の切り分け（最重要の疑い）
+## 5. CRSF反転 — ✅ 決着済み（2026-08-06, Stage D）
 
-現コードは `CRSF_INVERT_SIGNAL=1`（S.Port前提の反転）。だが **ELRS TXモジュールへのCRSFは
-通常「非反転」**で、参照図(63bit氏 R63b)も反転記載なし・680Ω直列のみ。ここが逆だと機体まで通らない。
+**`CRSF_INVERT_SIGNAL=1`（反転ON）のままで機体まで疎通した。** 当初は「ELRS TXモジュールへの
+CRSFは非反転では？」と疑っていたが、Nano TX V2 の S.Port は反転入力で正しかった。
+GP0のオシロ観測（2026-07-18）でビット幅・極性も確認済み。**この節での切り分けは不要**。
 
-1. [ ] まず現状（反転ON）で機体がバインド済みのTXにRCが通るか確認（後述 §7）。
-2. [ ] 通らなければ `src/main.c` の `#define CRSF_INVERT_SIGNAL 0` に変更・再ビルド・書込みして再試験。
-3. [ ] どちらで通るか記録し、CLAUDE.md/README を実機結果に合わせて更新する。
-
-> Nano TX V2 側の Telemetry/シリアルプロトコル設定（CRSF）も合わせて確認。
+- 配線は GP0 → 680Ω → Nano TX CRSF の1本（半二重）。
+- 新しいTXモジュールに替えた時だけ、`src/main.c` の `CRSF_INVERT_SIGNAL` を疑えばよい。
+- Nano TX V2 側のシリアルプロトコル設定は CRSF。
 
 ---
 
 ## 6. HIDパーサの実機対応（必要時）
 
-汎用パーサは `report[0]=LX, [1]=LY, [2]=RX, [3]=RY, [4..]=buttons` を仮定（HIDディスクリプタ未解析）。
-§4 の `(1) HID raw` と実操作の対応から、実機パッドのバイト配置を確認し、必要なら
-`src/usb_gamepad.c` の `process_gamepad_report()` を実機に合わせて調整する。
-（DualShock4 は専用パーサあり: VID 0x054C / PID 0x09CC or 0x05C4）
+レポートディスクリプタを `src/hid_parser.c` で解析し、軸の配置を自動で求める
+（VID/PID専用パーサが無い機種用）。実機確定済みのデバイス:
+
+| デバイス | VID:PID | 備考 |
+|---|---|---|
+| Logitech F310 | `046D:C216` | **裏スイッチを D モードに**（Xモードは `046D:C21D` でHIDではない）。軸は `report[0..3]`、ボタンは `((report[4]>>4)\|(report[5]<<4)) & 0x0FFF`、ハットは `report[4]&0x0F` |
+| LiteRadio 3 | `0483:572B` | 16bit×8ch。**AETRのチャンネル順**なので LITERADIO プロファイルで素通し |
+| DualShock 4 | `054C:09CC` / `054C:05C4` | 専用パーサあり（実機未検証） |
+
+⚠️ **F310 は SDK パッチが必須**。`./scripts/apply_sdk_patch.sh` を当てていないと
+列挙・HIDマウントまで成功するのに**レポートが1本も来ない**（RP2040のDATA1バグ）。
+症状が出たらまずこれを疑う。詳細は breadboard-bringup.md Stage C。
 
 ---
 
 ## 7. 機体までの疎通（プロペラを外して）
 
-1. [ ] 機体(Pavo Pico)の受信機を対象TXにバインド済みにする。
+1. [ ] 機体(Pavo Pico II)の受信機を対象TXにバインド済みにする。
 2. [ ] SIMPLE で、Betaflight等のReceiverタブでスティック/スイッチが追従するか確認。
 3. [ ] Arm(CH7=Aボタン)は**トグル式**: 1回押すとArm、もう1回でDisarm（プロペラ無し）。
    - ※Betaflight Configurator接続中は MSP/CLI フラグでArm不可（ビープで拒否通知）。USBを抜いて確認する。
@@ -115,12 +131,25 @@ SIMPLE モードで、ゲームパッドを操作しながら `d` を送る。
 
 ## 8. 記録 → 再生
 
-1. [ ] RECORD に入れて（赤LED）数十秒操作 → `# recording started`。
-2. [ ] 次のモードへ短押しで抜ける → `# recording stopped, flushed N samples`（N>0）。
-3. [ ] PLAYBACK に入る（緑LED）→ `# playback ready: N samples`。
-4. [ ] **長押し(0.6s)** で再生開始 → `# playback START`。Receiverタブで記録した操作が再現される。
-5. [ ] 末尾で `# playback finished`、または長押しで停止。
-6. [ ] 電源を入れ直しても PLAYBACK で N が残る（フラッシュ永続）ことを確認。
+記録は**RECORDモードに入った時点では始まらない**。ゲームパッドの**LB**で start/stop する。
+
+1. [ ] RECORD に入る → 赤LEDが**ゆっくり点滅**（待機）、`# RECORD ready: press LB (or 'r') ...`。
+2. [ ] **LB** を押す → 赤LEDが**点灯**に変わり `# recording START (buffer cleared)`。
+       数十秒操作してもう一度 LB → `# recording STOP (N samples in RAM, ...)`。
+       UARTの `r` でも同じ（ベンチでパッドを使わない時用）。
+3. [ ] 次のモードへ短押しで抜ける → `# recording stopped, flushed N samples`（N>0）。
+       **N ≈ 50 × 記録秒数**（50Hz記録）になっているか確認する。
+4. [ ] LBを一度も押さずに RECORD を通過した場合は書き出さない
+       → `# nothing recorded, flash log kept (N samples)`。前のログが残ること。
+5. [ ] PLAYBACK に入る → 緑LEDが**点灯**（待機）、`# playback ready: N samples`。
+6. [ ] **長押し(0.6s)** で再生開始 → 緑LEDが**点滅**に変わり `# playback START`。
+       Receiverタブで記録した操作が再現される（点滅＝ボタンを受け付けた合図）。
+7. [ ] 末尾で `# playback finished` と緑LEDが点灯に戻る、または長押しで停止。
+8. [ ] ログが無い状態で長押し → `# playback not started: no log in flash`（開始しない）。
+9. [ ] 電源を入れ直しても PLAYBACK で N が残る（フラッシュ永続）ことを確認。
+
+> 赤LED: ゆっくり点滅=待機 / 点灯=記録中 / 速い点滅=バッファ満杯(120秒)
+> 緑LED: 点灯=待機 / 点滅=再生中
 
 ---
 
@@ -137,12 +166,17 @@ SIMPLE モードで、ゲームパッドを操作しながら `d` を送る。
 | 項目 | 結果 | メモ |
 |------|------|------|
 | Buck実測電圧 | 未 | Stage F で導入。Stage A-C は PSU 直(5.0V実測/20mA) |
-| 反転 ON/OFF どちらで疎通 | 未 | §5 / Stage D。オシロでGP4のビット幅も測ること（[breadboard-bringup.md](breadboard-bringup.md) Stage B の既知の問題） |
+| 反転 ON/OFF どちらで疎通 | **反転ON** (2026-08-06) | §5 / Stage D で決着。GP0波形もオシロ確認済み(2026-07-18) |
 | ゲームパッド VID/PID | **046D:C216** (F310 / Dモード) | Xモードは 046D:C21D で**HIDではない**ので必ず裏スイッチを **D** に |
 | HIDパーサ調整要否 | **要（ボタンのみ）** | §6 / 軸 `report[0..3]` は現行のままで正解。ボタンは `((report[4]>>4)|(report[5]<<4)) & 0x0FFF`、ハットは `report[4]&0x0F`。配置は breadboard-bringup.md Stage C 参照 |
 | 記録→再生 サンプル数 | 137 (2026-07-16, ベンチ) | パッド無しでのStage B確認時。50Hzで2.74秒分、レート正常 |
-| フェイルセーフ動作 | 未 | Stage E。パッド未接続時に CH3=172 になることは確認済み |
+| フェイルセーフ動作 | **合格** (2026-08-06) | Stage D でArm中にパッドを引き抜き→即モーター停止、再接続で復帰 |
+| 記録start/stop (LB) | 未 | 2026-10-20実装。Stage E 再試験で確認する |
+| 再生中の緑LED点滅 | 未 | 同上 |
 
-> ⚠️ **未解決 (2026-07-17)**: F310(Dモード)は列挙もHIDマウントも成功するが、**割り込みINレポートを1本も返さない**。
-> マウス/キーボード(いずれもLow Speed)は正常動作するため、ホストスタックは白。詳細と次の一手は
-> [breadboard-bringup.md](breadboard-bringup.md) の Stage C 実施記録を参照。
+> ✅ **解決済み (2026-07-18)**: 「F310(Dモード)が列挙・HIDマウントまで成功するのにレポートを
+> 1本も返さない」問題は、**F310が最初のInterrupt IN転送をDATA1 PIDで始める**ことと
+> **RP2040のデータシーケンスエラーから回復できないチップバグ**(TinyUSB issue #2776)の組み合わせだった。
+> 該当EPの初期PIDをDATA1にするパッチで回避している（`./scripts/apply_sdk_patch.sh`）。
+> **SDKを入れ直すと失われる**ので、同じ症状が出たらまずパッチの適用を確認すること。
+> 詳細は [breadboard-bringup.md](breadboard-bringup.md) Stage C 実施記録。

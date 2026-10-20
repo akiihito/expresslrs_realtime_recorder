@@ -238,8 +238,11 @@ DATA1 PID で開始する**（F310ファーム側の癖）。RP2040 は初期PID
 - **Armをトグル式に変更**: F310は押しボタンでArm状態を保持できないため、Aボタンの
   押下エッジで Arm/Disarm を切り替えるラッチに変更。切断フェイルセーフでラッチも
   リセット（再接続で勝手にArmが復活しない）。デバッグUARTに `# ARM`/`# DISARM` を出力。
-  ⚠️ **TODO(実飛行前)**: 飛行中の誤タッチ1回で即Disarm=墜落するため、長押し化や
-  Bボタン=Disarm専用などの誤操作対策を検討すること。
+  ⚠️ **TODO(実飛行前)**: 飛行中の誤タッチ1回で即Disarm=墜落する。
+  → **方針決定済み（GP3の物理トグルスイッチへ移行。スイッチ位置=Arm状態が目視できる）**。
+  実装は commit `1534582` に完成済みだが、スイッチ未購入のため `eb4c241` で revert 中。
+  **入手後に `git revert eb4c241` で復活**させるだけでよい。基板(hardware/)にはSW3として
+  場所を確保済み。
 - **F310ボタンマッピング実機確定**: A→AUX3, B→AUX4, X→AUX5, Y→AUX6, LB→AUX7,
   RB→AUX8 で仮マッピング通り。usb_gamepad.c の警告コメントを実機確認済みに更新。
 - **豆知識**: Betaflight Configurator接続中は `MSP`/`CLI` フラグでArm不可（安全機構）。
@@ -357,9 +360,10 @@ RECORD→PLAYBACK→長押し再生まで通り、再生が最後まで走るこ
 
 ## Stage F — ユニバーサル基盤へ移設
 
-目的: 検証済み回路を `docs/perfboard-layout.html` に従いハンダ実装し、短縮版で再検証。
+目的: 検証済み回路を `docs/perfboard.html` に従いハンダ実装し、短縮版で再検証。
+（⚠️ `docs/perfboard-layout.html` は**旧版**。保護部品が未反映なので使わない）
 
-1. [ ] perfboard-layout の netlist 通りにハンダ。GP0直列抵抗・半二重結線はStage Dで確定した方式で。
+1. [ ] perfboard.html の配線リスト通りにハンダ。GP0直列抵抗・半二重結線はStage Dで確定した方式で。
 2. [ ] **給電をLiPo+Buckへ切替**: Buck出力を**テスターで実測5.0V**に調整してからPico接続（Stage A手順を再実施）。TX VBATはLiPo直結。GNDはLiPo−起点のスター結線。
 3. [ ] 導通チェック（テスター）: 電源極性、GNDスター、GP0/GP2/GP4/GP10-12 の結線とショート無し。
 4. [ ] 短縮再検証: Stage B(モードUI) → C(パッド追従1点) → D(疎通・Arm) → E(記録再生1回・フェイルセーフ) を各1パス。

@@ -29,7 +29,11 @@ Raspberry Pi Pico
 ```bash
 PICO_SDK_PATH=/Users/akihito/pico-sdk PICO_TOOLCHAIN_PATH=/Users/akihito/gcc-arm-none-eabi cmake ..
 ```
-※ SDK内 `hcd_rp2040.c` にF310用のローカル改変（DATA1ワークアラウンド）があり、SDKを入れ直すと失われる。
+⚠️ **SDKを入れ直したら `./scripts/apply_sdk_patch.sh` を1回実行すること**（冪等）。SDK内
+`lib/tinyusb/.../hcd_rp2040.c` にF310用のローカル改変（DATA1ワークアラウンド）が必要で、
+SDKは git 管理外なので入れ直すと失われる。**当て忘れるとF310がHIDレポートを1本も返さない**
+（原因切り分けに苦労した問題なので、症状が出たらまずこれを疑う）。パッチ本体は
+`patches/hcd_rp2040_f310_data1.patch`、経緯は `docs/breadboard-bringup.md` Stage C。
 
 ## ピン配置
 | Picoピン | 機能 | 接続先 |
