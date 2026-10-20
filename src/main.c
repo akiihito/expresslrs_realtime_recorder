@@ -158,6 +158,7 @@ static uint32_t stick_scale_pct    = STICK_SCALE_DEFAULT_PCT;
 // 実体はLED制御と並べて後述。UARTコマンド 'i' からも呼ぶため先に宣言する。
 static void input_profile_toggle(void);
 static const char* input_name(input_profile_t p);
+static const char* status_tag(void);
 
 // 動作モード（押下で SIMPLE→RECORD→PLAYBACK→SIMPLE… と循環）
 typedef enum {
@@ -589,8 +590,8 @@ static void debug_log_channels(void) {
 
         const gamepad_state_t *gp = usb_gamepad_get_state();
 
-        printf("[%s] CH1-4: %4d %4d %4d %4d | BTN: 0x%04X\n",
-               gp->connected ? "CONN" : "----",
+        printf("[%-9s][%s] CH1-4: %4d %4d %4d %4d | BTN: 0x%04X\n",
+               status_tag(), gp->connected ? "CONN" : "----",
                crsf_channels[0], crsf_channels[1],
                crsf_channels[2], crsf_channels[3],
                gp->buttons);
@@ -740,6 +741,9 @@ static void dbg_poll_commands(void) {
                 throttle_print_tuning();
                 break;
             case '?':
+                printf("# now: %s / input=%s / flash log=%u samples\n",
+                       status_tag(), input_name(current_input),
+                       (unsigned)recorder_flash_sample_count());
                 printf("# commands: d=snapshot  s=toggle stream  r=rec start/stop(RECORD)"
                        "  p=play/stop(PLAYBACK)  i=input profile  ?=help\n");
                 printf("# mode button(GP%d): short=cycle mode  long(%.1fs)=play/stop in PLAYBACK"
@@ -808,6 +812,21 @@ static const char* mode_name(op_mode_t m) {
 }
 
 // 現在のモードに応じて3つの外付けLEDを1つだけ点灯させる。
+// 現在のモードと、その中の記録/再生の状態を1語で返す（最大8文字）。
+// LEDを見れば分かることだが、ログだけ見返した時に「どのモードのどの状態で
+// 起きたことか」が分からないと追えないため、ハートビートと `?` に出す。
+static const char* status_tag(void) {
+    switch (current_mode) {
+        case MODE_RECORD:
+            if (recorder_is_full()) return "REC-FULL";  // バッファ満杯で記録停止
+            return recording_on ? "REC-ON" : "REC-idle";
+        case MODE_PLAYBACK:
+            return playback_running ? "PLAY-ON" : "PLAY-idle";
+        default:
+            return "SIMPLE";
+    }
+}
+
 static void update_mode_leds(void) {
     gpio_put(LED_RECORD_PIN,   current_mode == MODE_RECORD);
     gpio_put(LED_PLAYBACK_PIN, current_mode == MODE_PLAYBACK);

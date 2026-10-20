@@ -410,3 +410,22 @@ python3 scripts/live_view.py [--port /dev/tty.usbmodemXXXX] [--baud 921600]
 - **スナップショット(A)**: `d` で次の1フレームの①〜⑥を全段HEXダンプ（CRC一致もOK/NG表示）
 - **連続ストリーム(C)**: `s` でON/OFF。25Hzで `D,...` CSVを出力し `live_view.py` が描画。デフォルトOFF（実飛行時はオーバーヘッド0）
 - デバッグUARTは500Hz送信を崩さないよう921600bpsで運用（1行≈1.4ms < 2ms）
+
+### 現在の状態の見かた
+LEDを見れば分かるが、**ログを見返した時に「どのモードのどの状態で起きたことか」**が
+分からないと追えないため、1秒ごとのハートビートの先頭と `?` の1行目に状態を出す。
+
+```
+[REC-idle ][CONN] CH1-4:  992  992  499  992 | BTN: 0x0000
+# now: REC-idle / input=GENERIC(hover-center) / flash log=512 samples
+```
+
+| タグ | 意味 | 対応するLED |
+|---|---|---|
+| `SIMPLE` | パススルー | 青 点灯 |
+| `REC-idle` | RECORDモードだが記録していない | 赤 ゆっくり点滅 |
+| `REC-ON` | 記録中 | 赤 点灯 |
+| `REC-FULL` | バッファ満杯で記録停止 | 赤 速い点滅 |
+| `PLAY-idle` | PLAYBACKモードで停止中 | 緑 点灯 |
+| `PLAY-ON` | 再生中 | 緑 点滅 |
+

@@ -49,7 +49,9 @@ micro-USB はゲームパッド専有のため、書き込み時のみ手順が�
    ⚠️ **手元のFTDI変換器は分周器バグでボーレートが8倍ずれる**ため
    `./scripts/monitor.sh 115200` を指定する（線上は921600bpsのまま）。
 2. [ ] 起動バナーと `Mode: SIMPLE ...`、`CRSF UART initialized...`、`signal inversion: ON` が出る。
-3. [ ] `?` を送るとコマンド一覧が返る。
+3. [ ] `?` を送ると、1行目に現在の状態（`# now: SIMPLE / input=...`）＋コマンド一覧が返る。
+4. [ ] 1秒ごとのハートビートの先頭がモードに追従する
+   （`[SIMPLE   ][CONN] CH1-4: ...` → RECORDに入れば `[REC-idle ]`）。
 
 ---
 
