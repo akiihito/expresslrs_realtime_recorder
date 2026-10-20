@@ -94,6 +94,13 @@ make -j$(sysctl -n hw.ncpu)
 ctest --output-on-failure
 ```
 
+ドキュメントがコードから古くなっていないかの機械チェック（UARTコマンド・GPIO番号・
+調整パラメータの網羅）も合わせて走らせる。詳細と限界は [`CLAUDE.md`](CLAUDE.md) の「開発ルール」。
+
+```bash
+python3 scripts/check_docs.py
+```
+
 ホスト側でリンクが `tapi error: malformed file` / `unknown architecture` で失敗する場合は、
 CommandLineTools の SDK が Xcode の `ld` より新しいのが原因。
 `-DCMAKE_OSX_SYSROOT=$(xcode-select -p)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk`
@@ -220,6 +227,7 @@ expresslrs_realtime_recorder/
 │   ├── flash.sh                 # 書き込み
 │   ├── monitor.sh               # シリアルモニター
 │   ├── apply_sdk_patch.sh       # SDKへのF310ワークアラウンド適用
+│   ├── check_docs.py            # コードとドキュメントの食い違い検出
 │   └── live_view.py             # リアルタイム値ビューア
 ├── patches/                     # SDKへ当てるパッチ本体
 ├── docs/                        # ブリングアップ手順・配線図・操作一覧

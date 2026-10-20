@@ -25,6 +25,18 @@ make -j$(sysctl -n hw.ncpu)
 ctest --output-on-failure
 ```
 
+続けてドキュメントの食い違いチェックも走らせる（CLAUDE.md「開発ルール」参照）:
+
+```bash
+cd /Users/akihito/works/expresslrs_realtime_recorder
+python3 scripts/check_docs.py
+```
+
+⚠️ ホスト側のリンクが `tapi error: malformed file` / `unknown architecture` で失敗する場合は
+CommandLineTools の SDK が Xcode の `ld` より新しいのが原因。
+`-DCMAKE_OSX_SYSROOT=$(xcode-select -p)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk`
+を付けて configure する（恒久対応はXcodeの更新）。
+
 ## テストフレームワーク
 - ホストPC上で実行可能なユニットテスト
 - Pico固有のハードウェア依存部分はモック化

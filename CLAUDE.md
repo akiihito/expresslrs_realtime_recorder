@@ -35,6 +35,56 @@ SDKは git 管理外なので入れ直すと失われる。**当て忘れるとF
 （原因切り分けに苦労した問題なので、症状が出たらまずこれを疑う）。パッチ本体は
 `patches/hcd_rp2040_f310_data1.patch`、経緯は `docs/breadboard-bringup.md` Stage C。
 
+## 開発ルール
+
+### ドキュメントはコードと同じコミットで直す
+2026-10-20に棚卸しをしたら、README と検証手順書が数ヶ月分古くなっていた。実害が出ていたのは3つ:
+
+- READMEのビルド手順に `apply_sdk_patch.sh` が無く、**手順どおりにやるとF310が1本もレポートを返さない**
+- `docs/hardware-validation.md` §3.5 が廃止した積算スロットルを合格条件にしていて、
+  **チェックリストを実行すると全項目が不合格になる**
+- 3つのドキュメントが旧版の基板図（`perfboard-layout.html`）を指していた
+
+**原因は重複**。`GP10` や `921600` のような1つの事実が**6つのドキュメントに書かれている**ため、
+コードを1行変えると最大6箇所を直す必要がある。しかも作業中に開くのはCLAUDE.mdだけなので、
+残り5つは**次に読む人が困るまで誰も気づかない**（コードは動かせば間違いが分かるが、
+ドキュメントにはそのフィードバックが無い）。だから後回しにすると必ず腐る。
+
+### 影響範囲の対応表（コードを変えたらここを見る）
+| 変えたもの | 直すドキュメント |
+|---|---|
+| GPIOの割り当て・LED・ボタン | CLAUDE.md ピン配置 / README ピン配置 / `docs/controls.html` / `hardware/README.md`（基板を変えるなら `hardware/` の回路図も） |
+| ボタン操作・UARTコマンドの追加削除 | CLAUDE.md（動作モード節＋monitor.shのコマンド列挙）/ README のコマンド表 / `docs/controls.html` / `docs/breadboard-bringup.md` の該当Stage |
+| スロットル・舵の特性、既定値 `*_DEFAULT_PCT` | CLAUDE.md 仕様節＋**チューニングの現状**表 / `docs/controls.html` / `docs/hardware-validation.md` §3.5 |
+| 記録・再生の仕様 | CLAUDE.md / README 動作モード / `docs/controls.html` / `docs/breadboard-bringup.md` Stage B・E / `docs/hardware-validation.md` §8 |
+| `scripts/` にファイル追加 | CLAUDE.md 手動操作スクリプト / README |
+| `printf` の文言 | **その文言でリポジトリ全体をgrepして**検証手順書の期待値を直す（`# recording started` が Stage E と §8 に埋まっていた） |
+
+### 機械で確かめられる部分は `./scripts/check_docs.py`
+```bash
+python3 scripts/check_docs.py    # 食い違いがあれば終了コード1
+```
+UARTコマンド（`dbg_poll_commands()` の case）・GPIO番号（`*_PIN`）・調整パラメータ
+（`*_DEFAULT_PCT`）が、CLAUDE.md / README / `docs/controls.html` に載っているかを確かめる。
+`/test` でも走る。
+
+⚠️ **これを通っても「古くない」証明にはならない**。列挙できるものしか見ていないので、
+挙動の説明文や検証手順の期待値（`# recording started` のような文言）はチェックできない。
+そこは上の対応表に従って人が読むしかない。
+
+### 原則
+- **仕様の記述はコードと同じコミットに入れる**。無関係な古さの棚卸しは別コミットでよい。
+  コミット前に `git diff --cached --stat` を見て、上の表の行が入っているか確認する。
+- **正本はCLAUDE.md**。READMEは公開用の入口（GitHubで最初に読まれる）、`docs/controls.html` は
+  印刷して飛行現場で見る操作シート。役割が違うので重複は承知の上で残しているが、
+  **重複をこれ以上増やさない**。新しい事実は原則CLAUDE.mdだけに書き、他は必要なら参照で済ます。
+- **実機未確認のものは `[ ] 未確認（YYYY-MM-DD実装）` で起こす**。ベンチで分かることと
+  実機でしか分からないことを分けて書く。確認したらその場で日付入りの実施記録に変える。
+- **廃止したファイルは即マークする**。消すか、先頭に「旧版・使うな」と現行版へのリンクを入れる。
+  放置すると他のドキュメントから参照され続ける（`perfboard-layout.html` で実際に起きた）。
+- **TODOは決着したら書き換える**。「検討すること」のまま残すと、決まった問いを次のセッションが
+  また議題として拾う（Armの誤操作対策、スロットル方式の3択で実際に起きた）。
+
 ## ピン配置
 | Picoピン | 機能 | 接続先 |
 |----------|------|--------|
@@ -330,6 +380,12 @@ UARTコマンド `r` でも同じ動作。
 - Picoを**BOOTSELボタンを押しながら**USB接続
 - RPI-RP2としてマウントされたことを確認
 - スクリプトを実行
+
+### ドキュメントの食い違いチェック
+```bash
+python3 scripts/check_docs.py
+```
+コードとドキュメントのズレを機械的に検出する（上「開発ルール」参照）。
 
 ### シリアルモニター
 ```bash
