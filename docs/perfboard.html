@@ -38,7 +38,9 @@
 <div class="note">
 <b>必要な基板: 35 × 26 穴以上（穴の範囲で約 86 × 64 mm）</b><br>
 95×72mm クラスの片面ユニバーサル基板でぎりぎり収まる。<b>買う前に実物の穴数を数えること</b>
-（縁の余白のぶん、カタログ寸法より穴数が少ない）。余裕を見るなら 100×75mm 以上。
+（縁の余白のぶん、カタログ寸法より穴数が少ない。95×72mmでも30×25穴しかない製品が実在する）。
+余裕を見るなら 100×75mm 以上。具体的な商品と、基板以外に買うものは
+<a href="../hardware/README.md">hardware/README.md の「部品」</a>にまとめてある。
 座標は <code>(列, 行)</code> で、左上が (1,1)。
 </div>
 
@@ -133,6 +135,8 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
 </ol>
 
 <h2>部品ごとの注意</h2>
+<p>定数・寸法・購入情報は <a href="../hardware/README.md">hardware/README.md の「部品」</a>が正本。
+ここは手組み固有の落とし穴だけ。</p>
 <ul>
  <li><b>J2 降圧モジュール(MP1584EN)</b>: 穴の左右間隔が18.9mmで
      <b>2.54mmの倍数にならない</b>（7.44穴ぶん）。基板に直接挿さらないので、
@@ -152,7 +156,7 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
 
 <h2>LEDの対応</h2>
 <table><thead><tr><th>LED</th><th>色</th><th>意味</th><th>Pico</th></tr></thead><tbody>
-<tr><td class="mono">D1</td><td>赤</td><td>REC</td><td class="mono">GP10 (pin14)</td></tr><tr><td class="mono">D2</td><td>緑</td><td>PLAY</td><td class="mono">GP11 (pin15)</td></tr><tr><td class="mono">D3</td><td>青</td><td>SIMPLE</td><td class="mono">GP12 (pin16)</td></tr><tr><td class="mono">D4</td><td>—</td><td>GENERIC</td><td class="mono">GP13 (pin17)</td></tr><tr><td class="mono">D5</td><td>—</td><td>LITERADIO</td><td class="mono">GP14 (pin18)</td></tr>
+<tr><td class="mono">D1</td><td>赤</td><td>REC</td><td class="mono">GP10 (pin14)</td></tr><tr><td class="mono">D2</td><td>緑</td><td>PLAY</td><td class="mono">GP11 (pin15)</td></tr><tr><td class="mono">D3</td><td>青</td><td>SIMPLE</td><td class="mono">GP12 (pin16)</td></tr><tr><td class="mono">D4</td><td>任意</td><td>GENERIC</td><td class="mono">GP13 (pin17)</td></tr><tr><td class="mono">D5</td><td>任意</td><td>LITERADIO</td><td class="mono">GP14 (pin19)</td></tr>
 </tbody></table>
 <p class="lede">D5 のみ GP14 (pin19)。GP15(pin20) は本個体にヘッダが無いため未使用。</p>
 
