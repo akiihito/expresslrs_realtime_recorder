@@ -201,7 +201,6 @@ GENERIC ではスティックのストロークが実機プロポより遥かに
   KiCad無しで見るなら `hardware/recorder.pdf`（回路図）/ `hardware/pcb-fab.pdf`（基板1:1）。
   ⚠️ **未発注・未検証**。部品表と発注前チェックは [`hardware/README.md`](hardware/README.md)。
 - [`docs/perfboard.html`](docs/perfboard.html) — ユニバーサル基板版の配置＆配線リスト（PCB発注前に手組みする用）。
-  ⚠️ `docs/perfboard-layout.html` は**旧版**（保護部品が未反映）なので使わない。
 - [`docs/breadboard-bringup.md`](docs/breadboard-bringup.md) — 段階的ブリングアップ手順（Stage A〜F）と実施記録
 - [`docs/hardware-validation.md`](docs/hardware-validation.md) — 単票チェックリスト（上の各Stageから参照）
 - [`docs/controls.html`](docs/controls.html) — 操作一覧（印刷用）

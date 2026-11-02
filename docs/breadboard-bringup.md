@@ -379,7 +379,6 @@ RECORD入場で赤がゆっくり点滅（待機）→ LBで点灯（記録中�
 ## Stage F — ユニバーサル基盤へ移設
 
 目的: 検証済み回路を `docs/perfboard.html` に従いハンダ実装し、短縮版で再検証。
-（⚠️ `docs/perfboard-layout.html` は**旧版**。保護部品が未反映なので使わない）
 
 1. [ ] perfboard.html の配線リスト通りにハンダ。GP0直列抵抗・半二重結線はStage Dで確定した方式で。
 2. [ ] **給電をLiPo+Buckへ切替**: Buck出力を**テスターで実測5.0V**に調整してからPico接続（Stage A手順を再実施）。TX VBATはLiPo直結。GNDはLiPo−起点のスター結線。
