@@ -58,15 +58,27 @@ SDKは git 管理外なので入れ直すと失われる。**当て忘れるとF
 | スロットル・舵の特性、既定値 `*_DEFAULT_PCT` | CLAUDE.md 仕様節＋**チューニングの現状**表 / `docs/controls.html` / `docs/hardware-validation.md` §3.5 |
 | 記録・再生の仕様 | CLAUDE.md / README 動作モード / `docs/controls.html` / `docs/breadboard-bringup.md` Stage B・E / `docs/hardware-validation.md` §8 |
 | `scripts/` にファイル追加 | CLAUDE.md 手動操作スクリプト / README |
+| 部品・基板（`hardware/tools/gen_*.py` を回した） | `hardware/README.md` の部品表＋配置の意図 / `docs/perfboard.html`（`gen_perf.py` の出力なのでHTMLを直接編集しない） |
 | `printf` の文言 | **その文言でリポジトリ全体をgrepして**検証手順書の期待値を直す（`# recording started` が Stage E と §8 に埋まっていた） |
 
 ### 機械で確かめられる部分は `./scripts/check_docs.py`
 ```bash
 python3 scripts/check_docs.py    # 食い違いがあれば終了コード1
 ```
-UARTコマンド（`dbg_poll_commands()` の case）・GPIO番号（`*_PIN`）・調整パラメータ
-（`*_DEFAULT_PCT`）が、CLAUDE.md / README / `docs/controls.html` に載っているかを確かめる。
-`/test` でも走る。
+8項目を確かめる。`/test` でも走る。
+
+1. UARTコマンド（`dbg_poll_commands()` の case）が CLAUDE.md / README / `docs/controls.html` に載っているか
+2. GPIO番号（`*_PIN`）が各ピン表に載っているか
+3. 調整パラメータ（`*_DEFAULT_PCT`）がCLAUDE.mdで説明されているか
+4. **その既定値そのもの** — CLAUDE.mdの「既定N%」が `#define` の値と一致するか
+5. **物理ピン番号** — 「GPn (pinM)」のMがPicoの実際のピンか（pin3/8/13/18はGND）
+6. **Markdownの表** — 区切り行を欠いた孤立した `|` 行が無いか
+7. **リンク切れ** — 相対リンクの先が存在するか
+8. **部品表** — `hardware/README.md` の参照記号が `recorder.kicad_pcb` と一致するか
+
+4〜8は2026-11-03に実際に起きた事故から足した（詳細は `scripts/check_docs.py` の冒頭）。
+**6が一番刺さった**: 部品表の途中に見出しを挿し込んだらC1〜C4の行が表から外れ、
+GitHubでは生の `| C1 | ... |` が並んで「**コンデンサの仕様が載っていない**」ように見えていた。
 
 ⚠️ **これを通っても「古くない」証明にはならない**。列挙できるものしか見ていないので、
 挙動の説明文や検証手順の期待値（`# recording started` のような文言）はチェックできない。
@@ -277,7 +289,7 @@ CRSF最大にすると**下側20ポイントに対し上側80ポイント＝上�
 ゲームパッドのスティックは**実機プロポのジンバルよりストロークが遥かに短い**ため、同じ親指の
 動きでも操作量の割合が何倍にもなり極端に敏感になる（実飛行 2026-08-27: 少し倒すだけで回転した）。
 これは**入力デバイス固有の特性**なので、Betaflightのrates（機体側で共通、LiteRadioにも効いてしまう）
-ではなく**プロファイルごとに補正する**。既定 **50%**（`STICK_EXPO_DEFAULT_PCT`）。
+ではなく**プロファイルごとに補正する**。既定 **85%**（`STICK_EXPO_DEFAULT_PCT`）。
 LiteRadioはジンバルが長いので適用しない。
 
 補正は2つあり、役割が違う:

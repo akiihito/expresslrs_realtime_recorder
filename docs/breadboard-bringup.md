@@ -58,6 +58,7 @@
 **実施記録 (2026-07-16): 合格。**
 - モード循環・長押し判定ともログで確認、LED3個の点灯もモード名と一致することを目視確認済み（1ピンずれ修正後）。おまけに記録→再生フローが一巡した:
   `# mode -> RECORD` → `# recording started` → `# mode -> PLAYBACK` → `# recording stopped, flushed 137 samples to flash`
+  （⚠️ `# recording started` は**当時の文言**。現在は LBトリガー化に伴い `# recording START (buffer cleared)` に変わっている）
   → `# playback ready: 137 samples` → 長押しで `# playback START (137 samples)` → `# playback finished`
 - 137サンプル ÷ 50Hz = 2.74秒 で、ログのハートビート(1秒毎)間隔と一致。**再生レートが設計どおり**であることを確認。
 
