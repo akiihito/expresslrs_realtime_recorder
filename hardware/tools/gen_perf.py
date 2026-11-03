@@ -146,6 +146,11 @@ if dups:
     print('穴の重複:', '; '.join(dups))
     sys.exit(1)
 
+# --- コンデンサの向き: フットプリント名の CP_ が有極性、C_ が無極性 ---
+comps = {}
+for c in sexp.find(sexp.find(doc, 'components')[0], 'comp'):
+    comps[sexp.val(c, 'ref')] = (sexp.val(c, 'value'), sexp.val(c, 'footprint'))
+
 # --- 母線の検査: 裸線が異ネットのピンを貫通しないか ---
 hole2net = {}
 for name, nodes in nets.items():
@@ -169,6 +174,21 @@ gnd_drops = []
 for h in sorted(gnd_pins - {g for g in gnd_pins if near_bus(g)}, key=lambda x: (x[1], x[0])):
     d = min(abs(h[0] - c) + abs(h[1] - r) for c, r in bus_cells)
     gnd_drops.append((hole2net[h][1], h, d))
+
+cap_rows = []
+for ref in sorted(r for r in place if r[0] == 'C' and r[1:].isdigit()):
+    value, fp = comps[ref]
+    hot, gnd = place[ref]['1'], place[ref]['2']        # pin1=電源側 / pin2=GND
+    cap_rows.append({
+        'ref': ref,
+        'value': value,
+        'polar': ':CP_' in fp,
+        'hot': hot, 'gnd': gnd,
+        'hot_side': '左' if hot[0] < gnd[0] else '右',
+        'gnd_side': '右' if hot[0] < gnd[0] else '左',
+        'rail': hole2net[hot][0],
+    })
+
 
 def label(ref, pin):
     c, r = place[ref][pin]
@@ -422,10 +442,8 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
      内部で繋がっていて、押しても切り替わらない。</li>
  <li><b>LED(D1〜D5)は極性あり</b>。<b>長い足がアノード(A)で、図では右側の穴</b>
      （抵抗に近い方）。短い足＝胴の平らな側が左でGND。</li>
- <li><b>電解コン C1/C3 も極性あり</b>。<b>長い足が＋</b>で、
-     <b>C1は {c1p}、C3は {c3p} が＋</b>（どちらも左の穴）。
-     胴に白帯が入っている側が−なので、<b>白帯を右に向ける</b>。
-     C2/C4（セラミック）は極性なし。</li>
+ <li><b>電解コン C1/C3 も極性あり</b>。どちらの穴が＋かは下の
+     「コンデンサの向き」の表に出してある。</li>
  <li><b>D6 TVS</b>は双方向品なので極性不問。</li>
  <li><b>コンデンサは2個1組で、容量違いを並列に入れている</b>（図で横並びなのはこのため）。
      C1(470µF)/C3(100µF)は<b>蓄え</b> — 送信バーストや突入電流でレールが落ちるのを支える、
@@ -441,6 +459,27 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
      C1/C3は蓄えが仕事なので、この距離でも実害は無い。</li>
  <li><b>R6(680Ω)はGP0とNano TXの間に必ず直列</b>で入れる。半二重バスの衝突保護。</li>
 </ul>
+
+<h2>コンデンサの向き</h2>
+<div class="note warn">
+<b>左右は「部品面（最初の図）」で見たときの左右。</b>部品は部品面から挿すのでこれでよいが、
+<b>はんだ面の図は列が右から左に進む</b>ので、向きをあちらの図で決めないこと。
+</div>
+<table><thead><tr><th>参照</th><th>容量</th><th>極性</th>
+<th>＋側（電源）</th><th>−側（GND）</th></tr></thead><tbody>
+{''.join(
+    '<tr><td class="mono"><b>%s</b></td><td class="mono">%s</td><td>%s</td>'
+    '<td class="mono">(%d,%d) %s &nbsp;%s</td>'
+    '<td class="mono">(%d,%d) %s</td></tr>'
+    % (c['ref'], c['value'],
+       '<b>あり</b>（電解）' if c['polar'] else 'なし（セラミック）',
+       c['hot'][0], c['hot'][1], c['hot_side'], c['rail'],
+       c['gnd'][0], c['gnd'][1], c['gnd_side'])
+    for c in cap_rows)}
+</tbody></table>
+<p class="lede"><b>電解コン（C1/C3）の見分け方</b>: <b>長い足が＋</b>。胴に白い帯が入っている側が
+−なので、<b>白帯を「−側」の列に向けて挿す</b>。足を切ってしまった後は白帯だけが頼りになる。<br>
+C2/C4 はセラミックなので<b>どちら向きでもよい</b>。表の列は配線の都合で決まっているだけ。</p>
 
 <h2>LEDの対応</h2>
 <table><thead><tr><th>LED</th><th>色</th><th>意味</th><th>Pico</th></tr></thead><tbody>

@@ -195,10 +195,8 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
      内部で繋がっていて、押しても切り替わらない。</li>
  <li><b>LED(D1〜D5)は極性あり</b>。<b>長い足がアノード(A)で、図では右側の穴</b>
      （抵抗に近い方）。短い足＝胴の平らな側が左でGND。</li>
- <li><b>電解コン C1/C3 も極性あり</b>。<b>長い足が＋</b>で、
-     <b>C1は (13,26)、C3は (30,12) が＋</b>（どちらも左の穴）。
-     胴に白帯が入っている側が−なので、<b>白帯を右に向ける</b>。
-     C2/C4（セラミック）は極性なし。</li>
+ <li><b>電解コン C1/C3 も極性あり</b>。どちらの穴が＋かは下の
+     「コンデンサの向き」の表に出してある。</li>
  <li><b>D6 TVS</b>は双方向品なので極性不問。</li>
  <li><b>コンデンサは2個1組で、容量違いを並列に入れている</b>（図で横並びなのはこのため）。
      C1(470µF)/C3(100µF)は<b>蓄え</b> — 送信バーストや突入電流でレールが落ちるのを支える、
@@ -214,6 +212,19 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
      C1/C3は蓄えが仕事なので、この距離でも実害は無い。</li>
  <li><b>R6(680Ω)はGP0とNano TXの間に必ず直列</b>で入れる。半二重バスの衝突保護。</li>
 </ul>
+
+<h2>コンデンサの向き</h2>
+<div class="note warn">
+<b>左右は「部品面（最初の図）」で見たときの左右。</b>部品は部品面から挿すのでこれでよいが、
+<b>はんだ面の図は列が右から左に進む</b>ので、向きをあちらの図で決めないこと。
+</div>
+<table><thead><tr><th>参照</th><th>容量</th><th>極性</th>
+<th>＋側（電源）</th><th>−側（GND）</th></tr></thead><tbody>
+<tr><td class="mono"><b>C1</b></td><td class="mono">470uF/25V</td><td><b>あり</b>（電解）</td><td class="mono">(13,26) 左 &nbsp;VBAT_7_13V</td><td class="mono">(15,26) 右</td></tr><tr><td class="mono"><b>C2</b></td><td class="mono">100nF</td><td>なし（セラミック）</td><td class="mono">(17,26) 左 &nbsp;VBAT_7_13V</td><td class="mono">(19,26) 右</td></tr><tr><td class="mono"><b>C3</b></td><td class="mono">100uF/16V</td><td><b>あり</b>（電解）</td><td class="mono">(30,12) 左 &nbsp;+5V</td><td class="mono">(32,12) 右</td></tr><tr><td class="mono"><b>C4</b></td><td class="mono">100nF</td><td>なし（セラミック）</td><td class="mono">(30,14) 左 &nbsp;+5V</td><td class="mono">(32,14) 右</td></tr>
+</tbody></table>
+<p class="lede"><b>電解コン（C1/C3）の見分け方</b>: <b>長い足が＋</b>。胴に白い帯が入っている側が
+−なので、<b>白帯を「−側」の列に向けて挿す</b>。足を切ってしまった後は白帯だけが頼りになる。<br>
+C2/C4 はセラミックなので<b>どちら向きでもよい</b>。表の列は配線の都合で決まっているだけ。</p>
 
 <h2>LEDの対応</h2>
 <table><thead><tr><th>LED</th><th>色</th><th>意味</th><th>Pico</th></tr></thead><tbody>
