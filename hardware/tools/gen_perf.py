@@ -4,7 +4,7 @@
 配線リストは回路図のネットリストから機械的に作るので、配線漏れが起きない。
 各部品の全ピンに穴を割り当てたかも検査する。
 """
-import os, sys
+import os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sexp
 
@@ -97,6 +97,7 @@ f1in, f1out = _hole('F1', '2'), _hole('F1', '1')  # ヒューズ前 / ヒュー�
 d2 = _mm(place['C2']['1'], place['J1']['3'])    # 100nF → Nano TX VBAT
 d4 = _mm(place['C4']['1'], place['U1']['40'])   # 100nF → Pico VBUS
 fuse_gap = _mm(place['J3']['1'], place['F1']['2'])  # ヒューズ前の無保護な区間
+j2in, j2out = _hole('J2', '1'), _hole('J2', '3')    # IN+(VBAT) / OUT+(+5V)
 
 # ---------------------------------------------------------------- GND母線
 # 裏面に張る裸のすずメッキ線。部品を動かすとここを異ネットのピンが貫通しうるので、
@@ -187,6 +188,34 @@ gnd_drops = []
 for h in sorted(gnd_pins - {g for g in gnd_pins if near_bus(g)}, key=lambda x: (x[1], x[0])):
     d = min(abs(h[0] - c) + abs(h[1] - r) for c, r in bus_cells)
     gnd_drops.append((hole2net[h][1], h, d))
+
+# --- J2(降圧モジュール)の端子 ---
+# 端子名はフットプリント生成側 (gen_buck_fp.py の PADS) から読む。手で写すと
+# いつか食い違い、INとOUTを取り違えるとPicoのVBUSに12Vが乗って即死するため。
+_fp = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        'gen_buck_fp.py')).read()
+_pads = dict(sorted(set(re.findall(r"\('([1-4])',\s*'(IN\+|IN-|OUT\+|OUT-)'", _fp))))
+if sorted(_pads) != ['1', '2', '3', '4']:
+    print('gen_buck_fp.py から J2 の端子名を読めない:', _pads)
+    sys.exit(1)
+J2_PINS = [(n, _pads[n].replace('-', '−')) for n in ('1', '2', '3', '4')]
+
+# 回路図が、その端子名のとおりに繋がっているかを確かめる。
+# pin2net はネットリストから直に引く（穴を経由すると循環して常に通ってしまう）。
+pin2net = {(ref, pin): nm.lstrip('/')
+           for nm, nodes in nets.items() for ref, pin in nodes}
+for _pin, _name in J2_PINS:
+    _want = {'IN+': 'VBAT_7_13V', 'IN−': 'GND',
+             'OUT+': '+5V', 'OUT−': 'GND'}[_name]
+    _got = pin2net.get(('J2', _pin))
+    if _got != _want:
+        print(f'J2.{_pin}({_name}) は {_want} のはずが {_got}')
+        sys.exit(1)
+j2_rows = []
+for pin, name in J2_PINS:
+    c, r = place['J2'][pin]
+    j2_rows.append((name, c, r, '左' if c < place['J2']['3'][0] + 1 else '右',
+                    hole2net[(c, r)][0]))
 
 cap_rows = []
 for ref in sorted(r for r in place if r[0] == 'C' and r[1:].isdigit()):
@@ -493,6 +522,28 @@ GND戻りは幹Fの末端 <code>(8,25)</code> で受ける。
      C1/C3は蓄えが仕事なので、この距離でも実害は無い。</li>
  <li><b>R6(680Ω)はGP0とNano TXの間に必ず直列</b>で入れる。半二重バスの衝突保護。</li>
 </ul>
+
+<h2>J2（降圧モジュール）の向き</h2>
+<div class="note warn">
+<b>⚠️ ここを逆にするとPicoが即死する。</b>OUT側に12Vを入れると、インダクタと
+ハイサイドの寄生ダイオードを通ってIN側にほぼ12Vが出る。そのINにPicoを繋いでいるので、
+<b>VBUSに12Vが乗る</b>（絶対最大5.5V）。
+</div>
+<table><thead><tr><th>端子</th><th>穴</th><th>位置</th><th>ネット</th></tr></thead><tbody>
+{''.join('<tr><td class="mono"><b>%s</b></td><td class="mono">(%d,%d)</td>'
+         '<td>%s・%s</td><td class="mono">%s</td></tr>'
+         % (nm, c, r, side, '下' if r > place['J2']['2'][1] else '上', net)
+         for nm, c, r, side, net in j2_rows)}
+</tbody></table>
+<div class="note warn">
+<b>図の左右で向きを決めないこと。モジュール本体のシルク（IN+ / IN− / OUT+ / OUT−）に合わせる。</b>
+この図はKiCadのフットプリント（IN が左）とは<b>左右が逆</b>に描いてある — 手組みでは
+リード線で繋ぐので向きは自由で、Picoと+5V系が左にあるぶんOUTを左にした方が線が短いため。
+どちらにせよ<b>シルクが正</b>で、図は配線先を示しているだけ。
+</div>
+<p class="lede"><b>通電前の確認</b>: 降圧モジュールを外した状態で、
+<code>{j2out}</code>（+5V）と <code>{j2in}</code>（VBAT）の間がテスターで
+<b>導通しない</b>こと。ここが繋がっていたら、どこかで+5VとVBATが短絡している。</p>
 
 <h2>コンデンサの向き</h2>
 <div class="note warn">

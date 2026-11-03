@@ -234,6 +234,25 @@ GND戻りは幹Fの末端 <code>(8,25)</code> で受ける。
  <li><b>R6(680Ω)はGP0とNano TXの間に必ず直列</b>で入れる。半二重バスの衝突保護。</li>
 </ul>
 
+<h2>J2（降圧モジュール）の向き</h2>
+<div class="note warn">
+<b>⚠️ ここを逆にするとPicoが即死する。</b>OUT側に12Vを入れると、インダクタと
+ハイサイドの寄生ダイオードを通ってIN側にほぼ12Vが出る。そのINにPicoを繋いでいるので、
+<b>VBUSに12Vが乗る</b>（絶対最大5.5V）。
+</div>
+<table><thead><tr><th>端子</th><th>穴</th><th>位置</th><th>ネット</th></tr></thead><tbody>
+<tr><td class="mono"><b>IN+</b></td><td class="mono">(35,9)</td><td>右・下</td><td class="mono">VBAT_7_13V</td></tr><tr><td class="mono"><b>IN−</b></td><td class="mono">(35,5)</td><td>右・上</td><td class="mono">GND</td></tr><tr><td class="mono"><b>OUT+</b></td><td class="mono">(28,9)</td><td>左・下</td><td class="mono">+5V</td></tr><tr><td class="mono"><b>OUT−</b></td><td class="mono">(28,5)</td><td>左・上</td><td class="mono">GND</td></tr>
+</tbody></table>
+<div class="note warn">
+<b>図の左右で向きを決めないこと。モジュール本体のシルク（IN+ / IN− / OUT+ / OUT−）に合わせる。</b>
+この図はKiCadのフットプリント（IN が左）とは<b>左右が逆</b>に描いてある — 手組みでは
+リード線で繋ぐので向きは自由で、Picoと+5V系が左にあるぶんOUTを左にした方が線が短いため。
+どちらにせよ<b>シルクが正</b>で、図は配線先を示しているだけ。
+</div>
+<p class="lede"><b>通電前の確認</b>: 降圧モジュールを外した状態で、
+<code>(28,9)</code>（+5V）と <code>(35,9)</code>（VBAT）の間がテスターで
+<b>導通しない</b>こと。ここが繋がっていたら、どこかで+5VとVBATが短絡している。</p>
+
 <h2>コンデンサの向き</h2>
 <div class="note warn">
 <b>左右は「部品面（最初の図）」で見たときの左右。</b>部品は部品面から挿すのでこれでよいが、
