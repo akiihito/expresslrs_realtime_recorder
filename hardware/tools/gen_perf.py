@@ -47,7 +47,7 @@ place['J3'] = {'2': (8, 26), '1': (10, 26)}                    # LiPo- / LiPo+
 place['F1'] = {'2': (12, 26), '1': (16, 26)}                   # LiPo側 / VBAT側
 place['C1'] = {'1': (19, 26), '2': (21, 26)}
 place['C2'] = {'1': (23, 26), '2': (25, 26)}
-place['J2'] = {'3': (28, 9), '4': (28, 5), '1': (35, 9), '2': (35, 5)}  # OUT+/OUT-/IN+/IN-
+place['J2'] = {'3': (28, 5), '4': (28, 9), '1': (35, 5), '2': (35, 9)}  # OUT+/OUT-/IN+/IN-
 place['C3'] = {'1': (30, 12), '2': (32, 12)}
 place['C4'] = {'1': (30, 14), '2': (32, 14)}
 place['D6'] = {'2': (30, 16), '1': (34, 16)}                   # +5V / GND
@@ -117,10 +117,13 @@ GND_BUS = [
      'J1.2。(3,10)-(2,10) でBへ渡す'),
     ('C', '列19 / 行3〜25',  [(19, r) for r in range(3, 26)],
      'Picoの左列のGND 4本（列20の行5/10/15/20）'),
-    ('D', '列28 / 行11〜25', [(28, r) for r in range(11, 26)],
-     'Picoの右列のGND 2本（列27の行15/20）'),
-    ('E', '行5 / 列27〜35',  [(c, 5) for c in range(27, 36)],
-     'U1.38 / J2.4 / J2.2。Dへは (28,5)-(28,11) を<b>被覆線</b>で（(28,9)が+5V）'),
+    ('D', '列28 行9〜25 ＋ 行9 列29〜35', [(28, r) for r in range(9, 26)]
+     + [(c, 9) for c in range(29, 36)],
+     'J2のGND 2本（OUT− (28,9) / IN− (35,9)）と Picoの右列のGND 2本'
+     '（列27の行15/20）。(28,25) で幹Aに繋がる'),
+    ('E', '列26 / 行5〜25',  [(26, r) for r in range(5, 26)],
+     'Picoの右列のGND 3本（列27の行5/15/20）。行5のU1.38はVBUSの戻りなので'
+     '短く太く。列26はPico本体の真下だがヘッダは列20と27なので当たらない'),
     ('F', '列10 行8〜24 ＋ 行24 列9〜13 ＋ (9,25)(8,25)',
      [(10, r) for r in range(8, 25)] + [(c, 24) for c in range(9, 14)]
      + [(9, 25), (8, 25)],
@@ -211,10 +214,14 @@ for _pin, _name in J2_PINS:
     if _got != _want:
         print(f'J2.{_pin}({_name}) は {_want} のはずが {_got}')
         sys.exit(1)
+_j2_cols = sorted({c for c, _r in place['J2'].values()})
+_j2_rows_y = sorted({r for _c, r in place['J2'].values()})
 j2_rows = []
 for pin, name in J2_PINS:
     c, r = place['J2'][pin]
-    j2_rows.append((name, c, r, '左' if c < place['J2']['3'][0] + 1 else '右',
+    j2_rows.append((name, c, r,
+                    '左' if c == _j2_cols[0] else '右',
+                    '上' if r == _j2_rows_y[0] else '下',
                     hole2net[(c, r)][0]))
 
 cap_rows = []
@@ -356,7 +363,8 @@ html = f"""<!doctype html>
 <ol style="margin:6px 0 0">
  <li><b>降圧モジュールは繋ぐ前に単体で5.0Vへ調整</b>。可変品は初期12V等のことがある。</li>
  <li><b>+5V と VBAT(7〜13V) を絶対に接触させない</b>。テスターの導通モードで
-     <code>(28,9)</code> と <code>(35,9)</code> の間が導通しないことを確認（降圧モジュール未接続時）。</li>
+     <code>{j2out}</code>（OUT+ = +5V）と <code>{j2in}</code>（IN+ = VBAT）の間が
+     導通しないことを確認（降圧モジュール未接続時）。</li>
  <li><b>給電は VBUS (27,3) のみ</b>。VSYS (27,4) には入れない
      （内部D1でUSBに5Vが回らずゲームパッドに給電できない）。</li>
  <li><b>J3.1 → F1.2 の線（ヒューズより前）は最短で引き、VBATの線と束ねない</b>。
@@ -532,14 +540,19 @@ GND戻りは幹Fの末端 <code>(8,25)</code> で受ける。
 <table><thead><tr><th>端子</th><th>穴</th><th>位置</th><th>ネット</th></tr></thead><tbody>
 {''.join('<tr><td class="mono"><b>%s</b></td><td class="mono">(%d,%d)</td>'
          '<td>%s・%s</td><td class="mono">%s</td></tr>'
-         % (nm, c, r, side, '下' if r > place['J2']['2'][1] else '上', net)
-         for nm, c, r, side, net in j2_rows)}
+         % (nm, c, r, side, vpos, net)
+         for nm, c, r, side, vpos, net in j2_rows)}
 </tbody></table>
 <div class="note warn">
-<b>図の左右で向きを決めないこと。モジュール本体のシルク（IN+ / IN− / OUT+ / OUT−）に合わせる。</b>
-この図はKiCadのフットプリント（IN が左）とは<b>左右が逆</b>に描いてある — 手組みでは
-リード線で繋ぐので向きは自由で、Picoと+5V系が左にあるぶんOUTを左にした方が線が短いため。
-どちらにせよ<b>シルクが正</b>で、図は配線先を示しているだけ。
+<b>⚠️ これは「180°回した向き」であって鏡像ではない。</b>
+KiCadのフットプリントは <b>INが左・−が上</b>、この図は <b>OUTが左・＋が上</b> で、
+水平に180°回すとこうなる（左右だけでなく上下も入れ替わる）。OUTを左にしてあるのは
+Picoと+5V系が左にあって線が短くなるため。<br>
+<b>鏡像にはできない</b>。左右だけ入れ替えるには部品を裏返すしかなく、そうすると
+<b>実装面（コイル・IC・半固定抵抗のある面）が基板側を向いて</b>、5.0Vへの調整が
+できなくなる。<b>実装面は上に向けたまま、水平に180°回す</b>こと。<br>
+最終的な判断は<b>モジュール本体のシルク（IN+ / IN− / OUT+ / OUT−）</b>で行う。
+図は配線先を示しているだけ。
 </div>
 <p class="lede"><b>通電前の確認</b>: 降圧モジュールを外した状態で、
 <code>{j2out}</code>（+5V）と <code>{j2in}</code>（VBAT）の間がテスターで
