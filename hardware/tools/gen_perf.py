@@ -76,6 +76,29 @@ for i, r in enumerate((16, 18, 20, 22, 24), start=1):
 
 LED_NAME = {1: 'REC', 2: 'PLAY', 3: 'SIMPLE', 4: 'GENERIC', 5: 'LITERADIO'}
 
+# ---------------------------------------------------------------- GND母線
+# 裏面に張る裸のすずメッキ線。部品を動かすとここを異ネットのピンが貫通しうるので、
+# 生成時に検査する（下の「母線の検査」）。
+# ⚠️ 幹(A)を列30で止めてあるのは、右下の (33,24) F1.2 と (35,26) J3.1 が
+# **ヒューズより前のLiPo+** で、裸線が隣を通ると半田のはみ出しでヒューズを
+# 介さずにLiPoが短絡するため。J3.2へは被覆線で引く。
+GND_BUS = [
+    ('A', '行25 / 列1〜30',  [(c, 25) for c in range(1, 31)],
+     '幹。列30で止める（右下はヒューズ前のLiPo+が近い）'),
+    ('B', '列2 / 行10〜25',  [(2, r) for r in range(10, 26)],
+     'J4.3 と D1〜D5 のカソードを直に拾う'),
+    ('B+', '列3 / 行3〜10',  [(3, r) for r in range(3, 11)],
+     'J1.2。(3,10)-(2,10) でBへ渡す'),
+    ('C', '列19 / 行3〜25',  [(19, r) for r in range(3, 26)],
+     'Picoの左列のGND 4本（列20の行5/10/15/20）'),
+    ('D', '列28 / 行11〜25', [(28, r) for r in range(11, 26)],
+     'Picoの右列のGND 2本（列27の行15/20）'),
+    ('E', '行5 / 列27〜35',  [(c, 5) for c in range(27, 36)],
+     'U1.38 / J2.4 / J2.2。Dへは (28,5)-(28,11) を<b>被覆線</b>で（(28,9)が+5V）'),
+    ('F', '列10 / 行8〜25',  [(10, r) for r in range(8, 26)],
+     'SW1.2 / SW2.2'),
+]
+
 # ---------------------------------------------------------------- ネットリスト
 doc = sexp.parse(open(NETLIST).read())[0]
 nets = {}
@@ -106,6 +129,30 @@ for ref, pins in place.items():
 if dups:
     print('穴の重複:', '; '.join(dups))
     sys.exit(1)
+
+# --- 母線の検査: 裸線が異ネットのピンを貫通しないか ---
+hole2net = {}
+for name, nodes in nets.items():
+    for ref, pin in nodes:
+        hole2net[place[ref][pin]] = (name.lstrip('/'), f'{ref}.{pin}')
+pierced = []
+for tag, where, cells, _why in GND_BUS:
+    for h in cells:
+        if h in hole2net and hole2net[h][0] != 'GND':
+            pierced.append(f'{tag} {h} に {hole2net[h][1]} ({hole2net[h][0]})')
+if pierced:
+    print('GND母線が異ネットを貫通:', '; '.join(pierced))
+    sys.exit(1)
+
+bus_cells = {h for _t, _w, cells, _y in GND_BUS for h in cells}
+gnd_pins = {h for h, (n, _p) in hole2net.items() if n == 'GND'}
+def near_bus(h):
+    return h in bus_cells or any((h[0] + dc, h[1] + dr) in bus_cells
+                                 for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+gnd_drops = []
+for h in sorted(gnd_pins - {g for g in gnd_pins if near_bus(g)}, key=lambda x: (x[1], x[0])):
+    d = min(abs(h[0] - c) + abs(h[1] - r) for c, r in bus_cells)
+    gnd_drops.append((hole2net[h][1], h, d))
 
 def label(ref, pin):
     c, r = place[ref][pin]
@@ -248,6 +295,22 @@ html = f"""<!doctype html>
 </div>
 <div class="fig">{svg_back}</div>
 
+<h2>裏面の配線について — 確認済みのことと、していないこと</h2>
+<div class="note">
+<b>確認済み（生成のたびに機械で検査）</b>
+<ul style="margin:6px 0">
+ <li>ネットリストの全ピンに穴が割り当たっている（漏れたら図を作らない）</li>
+ <li>同じ穴を2つの部品が使っていない</li>
+ <li><b>裸のGND母線が、別ネットのピンを貫通していない</b></li>
+</ul>
+<b>していないこと</b>
+<ul style="margin:6px 0">
+ <li><b>1本ずつの引き回しは決めていない</b>（下の配線リストの28本）。被覆線・UEWを使う前提なので
+     交差は自由で、順番も問わない。裏面で実際にどう這わせるかは組む人の裁量。</li>
+ <li>実物の部品での現物合わせ（J2とF1は実測していない）</li>
+</ul>
+</div>
+
 <h2>配線のやり方</h2>
 <p class="lede">片面ユニバーサル基板の前提。<b>部品は表に挿し、配線は全部裏（はんだ面）</b>。</p>
 <table><thead><tr><th>用途</th><th>使うもの</th><th>理由</th></tr></thead><tbody>
@@ -278,12 +341,27 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
 
 <h2>GND（{len(gnd_holes)}点）</h2>
 <div class="note warn">
-<b>1本ずつ配線せず、GNDバスを張る。</b> 錫メッキ線（φ0.6mm程度）を裏面に
-渡して母線にし、各GND点から最短で落とす。母線は
-<code>列19の縦</code>（Picoの左隣）と<code>行25の横</code>（電源部）の2本を
-交差点で繋ぐと全域に届く。<b>行25は基板の全幅に渡す</b>こと —
-J3.2(LiPo−)・J2・D6 のGNDはどれも右端にある。
+<b>1本ずつ配線せず、下の6本の母線を張る。</b> 錫メッキ線（φ0.6mm程度）を裏面に渡し、
+各GND点から最短で落とす。母線は<b>裸線なので、通る穴に別ネットのピンがあってはいけない</b> —
+生成時に検査しており、引っかかれば図が作られない。
 </div>
+<table><thead><tr><th>母線</th><th>場所</th><th>役目</th></tr></thead><tbody>
+{''.join(f'<tr><td class="mono"><b>{t}</b></td><td class="mono">{w}</td><td>{y}</td></tr>'
+         for t, w, _c, y in GND_BUS)}
+</tbody></table>
+<div class="note warn">
+<b>⚠️ 幹(A)を列30で止めているのは安全のため。</b>右下の <code>(33,24) F1.2</code> と
+<code>(35,26) J3.1</code> は<b>ヒューズより前のLiPo+</b>で、裸の母線が隣の穴を通ると
+半田のはみ出しで<b>ヒューズを介さずにLiPoが短絡する</b>（数十Aが出る）。
+<code>J3.2 (33,26)</code> へは被覆線で引くこと。
+</div>
+<p>この6本に<b>直結または隣（1穴）になるGND点が {len(gnd_pins) - len(gnd_drops)}/{len(gnd_pins)}</b>。
+残り {len(gnd_drops)}点は個別に線を落とす:</p>
+<table><thead><tr><th>GND点</th><th>穴</th><th>最寄りの母線まで</th></tr></thead><tbody>
+{''.join(f'<tr><td class="mono">{p}</td><td class="mono">({h[0]},{h[1]})</td>'
+         f'<td class="mono">{d}穴</td></tr>' for p, h, d in gnd_drops)}
+</tbody></table>
+<p class="lede">GND全{len(gnd_holes)}点:</p>
 <p class="mono" style="font-size:12.5px;line-height:2">{'　'.join(gnd_holes)}</p>
 
 <h2>組み立て順</h2>
