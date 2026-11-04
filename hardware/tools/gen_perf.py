@@ -192,6 +192,63 @@ for h in sorted(gnd_pins - {g for g in gnd_pins if near_bus(g)}, key=lambda x: (
     d = min(abs(h[0] - c) + abs(h[1] - r) for c, r in bus_cells)
     gnd_drops.append((hole2net[h][1], h, d))
 
+# ------------------------------------------------ 裸線で引けるかの判定
+# 抵抗の切った足やすずメッキ線（＝裸線）で引ける区間を機械的に決める。
+# 被覆が必要になる理由は3つあり、どれも性質が違う:
+#   1. 直線上に別ネットのピンがある — その穴で直に当たる
+#   2. 裸のGND母線と交差する       — 母線は裸と決めてあるので逃げ場がない
+#   3. ヒューズより前のLiPo+       — 触れた時に保護が無い（数十Aが出る）
+# 配線リスト同士の交差は片方が被覆なら足りるので、それだけなら「裸可」に留める。
+# ⚠️ 2 を見落として「裸でよい」と判断した事故がある（2026-11-04）。配線リストの
+# 線同士しか比べておらず、GND母線を交差相手に数えていなかった。
+BUS_SEGS = [(tag, a, b) for tag, _w, cells, _y in GND_BUS
+            for a, b in zip(cells, cells[1:])
+            if abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1]
+
+# ヒューズより前のLiPo+。この2穴を結ぶ区間だけは保護が無い。
+UNFUSED = {place['J3']['1'], place['F1']['2']}
+
+
+def _orient(a, b, c):
+    v = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    return (v > 0) - (v < 0)
+
+
+def _crosses(a, b, c, d):
+    """線分ab と cd が交差するか。端点を共有する場合は交差としない。"""
+    if len({a, b, c, d}) < 4:
+        return False
+    return (_orient(a, b, c) != _orient(a, b, d)
+            and _orient(c, d, a) != _orient(c, d, b))
+
+
+def _on_seg(a, b, h):
+    """穴h が線分ab の上に乗っているか（端点を含む）。"""
+    return ((h[0] - a[0]) * (b[1] - a[1]) == (h[1] - a[1]) * (b[0] - a[0])
+            and min(a[0], b[0]) <= h[0] <= max(a[0], b[0])
+            and min(a[1], b[1]) <= h[1] <= max(a[1], b[1]))
+
+
+def classify(net, a, b, n_cross):
+    """(判定, 理由) を返す。a,b は穴の座標。"""
+    why = []
+    for h in sorted((h for h, (n, _l) in hole2net.items()
+                     if h not in (a, b) and n != net and _on_seg(a, b, h)),
+                    key=lambda h: (h[1], h[0])):
+        n, lbl = hole2net[h]
+        why.append(f'({h[0]},{h[1]}) {lbl}[{n}] を踏む')
+    buses = sorted({t for t, c, d in BUS_SEGS if _crosses(a, b, c, d)})
+    if buses:
+        why.append('GND母線' + '・'.join(buses) + 'と交差')
+    if {a, b} <= UNFUSED:
+        why.append('ヒューズ前のLiPo+')
+    if why:
+        return '被覆', '／'.join(why)
+    if n_cross:
+        return '裸可', f'配線{n_cross}本と交差（相手が被覆なら裸でよい）'
+    return '裸', '交差なし'
+
+
 # --- J2(降圧モジュール)の端子 ---
 # 端子名はフットプリント生成側 (gen_buck_fp.py の PADS) から読む。手で写すと
 # いつか食い違い、INとOUTを取り違えるとPicoのVBUSに12Vが乗って即死するため。
@@ -250,14 +307,34 @@ def hole(ref, pin):
 # ---------------------------------------------------------------- 出力
 rows_wire = []
 gnd_holes = []
+segs = []                      # (ネット, 始点ピン, 終点ピン)
 for name, nodes in sorted(nets.items()):
     pretty = name.lstrip('/')
     pts = [(ref, pin) for ref, pin in nodes]
     if pretty == 'GND':
         gnd_holes = [f'{r}.{p} {hole(r,p)}' for r, p in pts]
         continue
-    chain = ' → '.join(f'<b>{hole(r,p)}</b> {r}.{p}' for r, p in pts)
-    rows_wire.append((pretty, len(pts), chain))
+    for x, y in zip(pts, pts[1:]):
+        segs.append((pretty, x, y))
+
+# 1区間につき1行。組みながら潰していくのでネットごとではなく区間ごとに出す。
+wire_kinds = {}
+for net, (r1, p1), (r2, p2) in segs:
+    a, b = place[r1][p1], place[r2][p2]
+    n_cross = sum(1 for n2, (s1, s2), (t1, t2) in segs
+                  if n2 != net and _crosses(a, b, place[s1][s2], place[t1][t2]))
+    kind, why = classify(net, a, b, n_cross)
+    wire_kinds[kind] = wire_kinds.get(kind, 0) + 1
+    # 各端点は mono(nowrap) で包む。折り返しは矢印のところだけで起きる。
+    rows_wire.append((net,
+        f'<span class="mono"><b>{hole(r1,p1)}</b> {r1}.{p1}</span> → '
+        f'<span class="mono"><b>{hole(r2,p2)}</b> {r2}.{p2}</span>', kind, why))
+
+# 隣の穴どうし＝部品の足で渡せる区間（線が要らない）
+leg_segs = [(net, f'{r1}.{p1}', hole(r1, p1), f'{r2}.{p2}', hole(r2, p2))
+            for net, (r1, p1), (r2, p2) in segs
+            if abs(place[r1][p1][0] - place[r2][p2][0])
+            + abs(place[r1][p1][1] - place[r2][p2][1]) == 1]
 
 P = 22          # 1穴あたりのpx
 M = 44
@@ -308,9 +385,19 @@ def build_svg(mirror=False):
 svg = [build_svg(False)]
 svg_back = build_svg(True)
 
-wire_rows = '\n'.join(
-    f'<tr><td class="mono"><b>{n}</b></td><td class="mono">{cnt}</td><td>{ch}</td></tr>'
-    for n, cnt, ch in rows_wire)
+# ネット名は同じネットの最初の行だけに出す（28行あるので目で追えなくなる）
+_KIND_CSS = {'裸': 'ok', '裸可': 'maybe', '被覆': 'need'}
+wire_rows, _prev = [], None
+for n, ch, kind, why in rows_wire:
+    wire_rows.append(
+        f'<tr><td class="mono">{"<b>%s</b>" % n if n != _prev else ""}</td>'
+        f'<td>{ch}</td>'
+        f'<td class="mono k-{_KIND_CSS[kind]}"><b>{kind}</b></td>'
+        f'<td class="why">{why}</td></tr>')
+    _prev = n
+wire_rows = '\n'.join(wire_rows)
+wire_tally = ' / '.join(f'{k} {wire_kinds[k]}本'
+                        for k in ('裸', '裸可', '被覆') if k in wire_kinds)
 
 html = f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
@@ -341,6 +428,8 @@ html = f"""<!doctype html>
  .note{{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);
    border-radius:8px;padding:12px 15px;margin:14px 0;font-size:14px}}
  .warn{{border-left-color:var(--pwr)}}
+ .k-ok{{color:var(--crsf)}} .k-maybe{{color:var(--accent)}} .k-need{{color:var(--pwr)}}
+ .why{{color:var(--muted);font-size:12.5px}}
  ol li,ul li{{margin:4px 0}} code{{font-family:ui-monospace,Menlo,monospace;
    background:var(--board);padding:1px 5px;border-radius:4px;font-size:.92em}}
  @media print{{body{{background:#fff}} .fig{{break-inside:avoid}}}}
@@ -397,11 +486,14 @@ html = f"""<!doctype html>
  <li>ネットリストの全ピンに穴が割り当たっている（漏れたら図を作らない）</li>
  <li>同じ穴を2つの部品が使っていない</li>
  <li><b>裸のGND母線が、別ネットのピンを貫通していない</b></li>
+ <li><b>どの配線区間を裸線で引けるか</b> — 別ネットのピンを踏まないか、裸のGND母線と
+     交差しないか、ヒューズ前のLiPo+でないかを1区間ずつ見る（配線リストの「線」列）</li>
 </ul>
 <b>していないこと</b>
 <ul style="margin:6px 0">
- <li><b>1本ずつの引き回しは決めていない</b>（下の配線リストの28本）。被覆線・UEWを使う前提なので
-     交差は自由で、順番も問わない。裏面で実際にどう這わせるかは組む人の裁量。</li>
+ <li><b>1本ずつの引き回しは決めていない</b>（下の配線リストの{len(rows_wire)}本）。
+     裏面で実際にどう這わせるかは組む人の裁量。ただし<b>どの区間を裸線で引けるかは検査している</b>
+     （配線リストの「線」列）。</li>
  <li>実物の部品での現物合わせ（J2とF1は実測していない）</li>
 </ul>
 </div>
@@ -411,18 +503,19 @@ html = f"""<!doctype html>
 <table><thead><tr><th>用途</th><th>使うもの</th><th>理由</th></tr></thead><tbody>
 <tr><td>GND母線</td><td class="mono">すずメッキ線 φ0.6</td>
     <td>太く低抵抗。直線で引ければ交差しないので裸線でよい</td></tr>
-<tr><td>電源 (+5V / VBAT)</td><td class="mono">被覆線 AWG24程度</td>
-    <td>電流が流れる。交差するので被覆必須</td></tr>
-<tr><td>信号</td><td class="mono">被覆線 AWG26〜30 / UEW(ポリウレタン線)</td>
-    <td>本数が多く交差する。UEWなら細くて取り回しが楽</td></tr>
+<tr><td>電源 (+5V / VBAT / LiPo+)</td><td class="mono">AWG24程度</td>
+    <td>電流が流れるので細い線は不可。<b>被覆が要るかは別の話</b>で、
+        区間ごとに配線リストの「線」列を見る</td></tr>
+<tr><td>信号</td><td class="mono">UEW(ポリウレタン線) φ0.3</td>
+    <td>本数が多く交差する。<b>はんだの熱で被覆が溶けるので皮むきが要らない</b>。
+        細いので重ねられる</td></tr>
 <tr><td>隣接する穴どうし</td><td class="mono">部品の足</td>
     <td>切り落とさず曲げて隣へ渡す。線が減る</td></tr>
 </tbody></table>
 <div class="note">
-<b>足を使える箇所</b>（隣の穴なので線が要らない）:
-LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span> /
-<span class="mono">D2(3,18)-R2(4,18)</span> / <span class="mono">D3(3,20)-R3(4,20)</span> /
-<span class="mono">D4(3,22)-R4(4,22)</span> / <span class="mono">D5(3,24)-R5(4,24)</span>
+<b>足を使える箇所</b>（隣の穴なので線が要らない。{len(leg_segs)}本）:
+{' / '.join(f'<span class="mono">{a}{ah}-{b}{bh}</span>'
+            for _n, a, ah, b, bh in leg_segs)}
 </div>
 <div class="note warn">
 <b>はんだブリッジで長い距離を繋がない。</b>隣の穴どうしなら可だが、何穴も盛って繋ぐのは
@@ -430,8 +523,23 @@ LEDのアノードと抵抗の足 — <span class="mono">D1(3,16)-R1(4,16)</span
 </div>
 
 <h2>配線リスト（GND以外）</h2>
-<p class="lede">同じネットの穴どうしを繋ぐ。→ の順に繋いでも、どの順でも電気的には同じ。</p>
-<table><thead><tr><th>ネット</th><th>点数</th><th>繋ぐ穴</th></tr></thead>
+<p class="lede">同じネットの穴どうしを繋ぐ。<b>1区間が1本</b>で全{len(rows_wire)}本
+（{wire_tally}）。繋ぐ順は電気的には問わないので、下の順に読まなくてよい。</p>
+<div class="note">
+<b>「線」列の意味</b>
+<ul style="margin:6px 0">
+ <li><b class="k-ok">裸</b> — すずメッキ線や<b>抵抗の切った足</b>で引ける。交差も踏むピンも無い</li>
+ <li><b class="k-maybe">裸可</b> — 他の配線と交差するだけ。<b>交差は片方が被覆なら足りる</b>ので、
+     相手を被覆にするなら裸でよい</li>
+ <li><b class="k-need">被覆</b> — 裸では短絡する。UEW（ポリウレタン線）が楽。理由は右列</li>
+</ul>
+<b>判定の根拠</b>: 直線で引いた時に ①別ネットのピンを踏む ②<b>裸のGND母線と交差する</b>
+③ヒューズより前のLiPo+、のどれかに当たれば「被覆」。
+①の区間は<b>踏むピンを避けられる順に読み替えれば裸にできることがある</b>
+（例: <span class="mono">C1.1 → C2.1 → F1.1</span> ではなく
+<span class="mono">F1.1 → C1.1</span> から繋ぐと、この1本は裸でよくなる）。
+</div>
+<table><thead><tr><th>ネット</th><th>繋ぐ区間</th><th>線</th><th>理由</th></tr></thead>
 <tbody>{wire_rows}</tbody></table>
 
 <h2>GND（{len(gnd_holes)}点）</h2>
@@ -590,4 +698,4 @@ C2/C4 はセラミックなので<b>どちら向きでもよい</b>。表の列�
 </div></body></html>
 """
 open(OUT, 'w').write(html)
-print(f'wrote {OUT}: {len(place)} parts, {len(rows_wire)} nets + GND({len(gnd_holes)}点)')
+print(f'wrote {OUT}: {len(place)} parts, {len(rows_wire)}区間 ({wire_tally}) + GND({len(gnd_holes)}点)')
