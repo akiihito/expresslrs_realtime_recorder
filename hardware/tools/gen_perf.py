@@ -304,6 +304,40 @@ def hole(ref, pin):
     c, r = place[ref][pin]
     return f'({c},{r})'
 
+# ------------------------------------------------------ 線材の決定
+# 「絶縁が要るか」と「太さが要るか」は別の軸なので、分けて決める。
+#   絶縁 … classify() が決める（踏むピン・裸のGND母線・ヒューズ前）
+#   太さ … 電流が流れるネットかどうか
+# 電源ネットは「降圧モジュール(J2) / LiPo(J3) / ヒューズ(F1) のピンを含むネット」
+# として引く。この3部品を通る電流は全部ここに乗り、信号ネットはどれにも触らない。
+# ⚠️ J1(Nano TX)は信号(CRSF)とVBATが同じコネクタに同居しているので判別に使えない。
+POWER_REFS = ('J2', 'J3', 'F1')
+power_nets = {nm.lstrip('/') for nm, nodes in nets.items()
+              if any(ref in POWER_REFS for ref, _pin in nodes)} - {'GND'}
+if not power_nets:
+    print('電源ネットを1つも見つけられない:', POWER_REFS)
+    sys.exit(1)
+
+# 材の表記。GND母線もすずメッキ線なので、裸の区間と同じ線を使い回せる。
+MAT_BARE   = 'すずメッキ φ0.6'
+MAT_LEG    = '部品の足'
+MAT_SIGNAL = 'UEW φ0.29'
+MAT_POWER  = 'AWG24'
+
+
+def material(net, a, b, kind):
+    """(材, 注記) を返す。"""
+    if abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1:
+        return MAT_LEG, '隣の穴。切らずに曲げて渡す'
+    if kind in ('裸', '裸可'):
+        if net in power_nets:
+            return MAT_BARE, '電流が流れるのでφ0.5以上。抵抗の足でも可'
+        return MAT_BARE, '抵抗の切った足でも可'
+    if net in power_nets:
+        return MAT_POWER, '電流が流れるのでUEWでは細すぎる'
+    return MAT_SIGNAL, '信号。皮むき不要で交差も重ねられる'
+
+
 # ---------------------------------------------------------------- 出力
 rows_wire = []
 gnd_holes = []
@@ -318,17 +352,20 @@ for name, nodes in sorted(nets.items()):
         segs.append((pretty, x, y))
 
 # 1区間につき1行。組みながら潰していくのでネットごとではなく区間ごとに出す。
-wire_kinds = {}
+wire_kinds, wire_mats = {}, {}
 for net, (r1, p1), (r2, p2) in segs:
     a, b = place[r1][p1], place[r2][p2]
     n_cross = sum(1 for n2, (s1, s2), (t1, t2) in segs
                   if n2 != net and _crosses(a, b, place[s1][s2], place[t1][t2]))
     kind, why = classify(net, a, b, n_cross)
+    mat, mat_why = material(net, a, b, kind)
     wire_kinds[kind] = wire_kinds.get(kind, 0) + 1
+    wire_mats[mat] = wire_mats.get(mat, 0) + 1
     # 各端点は mono(nowrap) で包む。折り返しは矢印のところだけで起きる。
     rows_wire.append((net,
         f'<span class="mono"><b>{hole(r1,p1)}</b> {r1}.{p1}</span> → '
-        f'<span class="mono"><b>{hole(r2,p2)}</b> {r2}.{p2}</span>', kind, why))
+        f'<span class="mono"><b>{hole(r2,p2)}</b> {r2}.{p2}</span>',
+        kind, mat, f'{why}。{mat_why}'))
 
 # 隣の穴どうし＝部品の足で渡せる区間（線が要らない）
 leg_segs = [(net, f'{r1}.{p1}', hole(r1, p1), f'{r2}.{p2}', hole(r2, p2))
@@ -387,17 +424,21 @@ svg_back = build_svg(True)
 
 # ネット名は同じネットの最初の行だけに出す（28行あるので目で追えなくなる）
 _KIND_CSS = {'裸': 'ok', '裸可': 'maybe', '被覆': 'need'}
+_MAT_CSS = {MAT_LEG: 'ok', MAT_BARE: 'ok', MAT_SIGNAL: 'maybe', MAT_POWER: 'need'}
 wire_rows, _prev = [], None
-for n, ch, kind, why in rows_wire:
+for n, ch, kind, mat, why in rows_wire:
     wire_rows.append(
         f'<tr><td class="mono">{"<b>%s</b>" % n if n != _prev else ""}</td>'
         f'<td>{ch}</td>'
-        f'<td class="mono k-{_KIND_CSS[kind]}"><b>{kind}</b></td>'
+        f'<td class="mono k-{_MAT_CSS[mat]}"><b>{mat}</b></td>'
+        f'<td class="mono k-{_KIND_CSS[kind]}">{kind}</td>'
         f'<td class="why">{why}</td></tr>')
     _prev = n
 wire_rows = '\n'.join(wire_rows)
 wire_tally = ' / '.join(f'{k} {wire_kinds[k]}本'
                         for k in ('裸', '裸可', '被覆') if k in wire_kinds)
+mat_tally = ' / '.join(f'<b>{m}</b> {wire_mats[m]}本' for m in
+                       (MAT_LEG, MAT_BARE, MAT_SIGNAL, MAT_POWER) if m in wire_mats)
 
 html = f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
@@ -526,12 +567,30 @@ html = f"""<!doctype html>
 <p class="lede">同じネットの穴どうしを繋ぐ。<b>1区間が1本</b>で全{len(rows_wire)}本
 （{wire_tally}）。繋ぐ順は電気的には問わないので、下の順に読まなくてよい。</p>
 <div class="note">
-<b>「線」列の意味</b>
+<b>「材」列 — 何で引くか</b>（{mat_tally}）
 <ul style="margin:6px 0">
- <li><b class="k-ok">裸</b> — すずメッキ線や<b>抵抗の切った足</b>で引ける。交差も踏むピンも無い</li>
+ <li><b class="k-ok">{MAT_LEG}</b> — 隣の穴なので線が要らない。切らずに曲げて渡す</li>
+ <li><b class="k-ok">{MAT_BARE}</b> — 裸線でよい区間。<b>抵抗の切った足でも代用できる</b>
+     （ただし母線のような長い距離は足では届かない）</li>
+ <li><b class="k-maybe">{MAT_SIGNAL}</b> — 絶縁が要る<b>信号</b>。ポリウレタン銅線。
+     <b>はんだの熱で被膜が溶けるので皮むきが要らず</b>、細いので交差を重ねられる</li>
+ <li><b class="k-need">{MAT_POWER}</b> — 絶縁が要る<b>電源</b>（{'・'.join(sorted(power_nets))}）。
+     <b>ここをUEWにしてはいけない</b> — 電流が流れる</li>
+</ul>
+<b>「材」は2つの軸の掛け算</b>です。<b>絶縁が要るか</b>（右の「絶縁」列）と
+<b>太さが要るか</b>（電流が流れるネットか）は別の話で、
+たとえば +5V は電流が流れるが裸でよい区間があり、そこは<b>太い裸線</b>になります。
+逆に信号で絶縁が要る区間を AWG24 にするのは電気的には問題ないものの、
+{len([1 for _n, _c, k, m, _w in rows_wire if m == MAT_SIGNAL])}本が
+Picoの左列に集まるので裏面が厚くなって入りません。
+</div>
+<div class="note">
+<b>「絶縁」列の意味</b>
+<ul style="margin:6px 0">
+ <li><b class="k-ok">裸</b> — 交差も踏むピンも無い</li>
  <li><b class="k-maybe">裸可</b> — 他の配線と交差するだけ。<b>交差は片方が被覆なら足りる</b>ので、
      相手を被覆にするなら裸でよい</li>
- <li><b class="k-need">被覆</b> — 裸では短絡する。UEW（ポリウレタン線）が楽。理由は右列</li>
+ <li><b class="k-need">被覆</b> — 裸では短絡する</li>
 </ul>
 <b>判定の根拠</b>: 直線で引いた時に ①別ネットのピンを踏む ②<b>裸のGND母線と交差する</b>
 ③ヒューズより前のLiPo+、のどれかに当たれば「被覆」。
@@ -539,7 +598,7 @@ html = f"""<!doctype html>
 （例: <span class="mono">C1.1 → C2.1 → F1.1</span> ではなく
 <span class="mono">F1.1 → C1.1</span> から繋ぐと、この1本は裸でよくなる）。
 </div>
-<table><thead><tr><th>ネット</th><th>繋ぐ区間</th><th>線</th><th>理由</th></tr></thead>
+<table><thead><tr><th>ネット</th><th>繋ぐ区間</th><th>材</th><th>絶縁</th><th>理由</th></tr></thead>
 <tbody>{wire_rows}</tbody></table>
 
 <h2>GND（{len(gnd_holes)}点）</h2>
@@ -699,3 +758,4 @@ C2/C4 はセラミックなので<b>どちら向きでもよい</b>。表の列�
 """
 open(OUT, 'w').write(html)
 print(f'wrote {OUT}: {len(place)} parts, {len(rows_wire)}区間 ({wire_tally}) + GND({len(gnd_holes)}点)')
+print('  材: ' + ' / '.join(f'{m} {c}本' for m, c in wire_mats.items()))
